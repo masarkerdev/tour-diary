@@ -99,6 +99,9 @@ table.grid td{padding:3px 4px}
 .visit{background:var(--leaf-soft);border-radius:9px;padding:6px 10px 8px;margin:8px 0}
 .visit .vh{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.9rem;color:var(--leaf)}
 .preview{background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:10px;font-family:"Tiro Bangla",serif;font-size:.95rem;line-height:1.7;margin-top:8px;text-align:justify}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
+.chips button{font:inherit;font-size:.86rem;border:1px solid var(--rule);background:var(--paper);color:var(--ink);padding:5px 10px;border-radius:16px;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--leaf);border-color:var(--leaf);color:var(--surface)}
 .rec{border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:8px 0}
 .seg2{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .seg2 button{font:inherit;border:1px solid var(--rule);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:20px;cursor:pointer}
@@ -228,7 +231,7 @@ table.grid td{padding:3px 4px}
         <label class="f"><span>প্রতি মাঠ ভ্রমণে ব্লক</span><select data-s="blocksPerTrip"><option value="1">১টি</option><option value="2">২টি</option><option value="3">৩টি</option></select></label>
         <label class="f"><span>ভ্রমণ বিবরণীর ছক</span><select data-s="diaryLayout"><option value="columns">কলামসহ (ক্রমিক, সময়, দূরত্ব, বিবরণ)</option><option value="narrative">শুধু তারিখ ও বিবরণ</option></select></label>
       </div>
-      <label class="f"><span>অগ্রিম সূচিতে মাঠ ভ্রমণের উদ্দেশ্য</span><input data-s="defaultPurpose"></label>
+      <label class="f"><span>অগ্রিম সূচির উদ্দেশ্যের তালিকা (প্রতি লাইনে একটি; প্রথম তিনটি স্বয়ংক্রিয় সূচিতে বসবে)</span><textarea id="purposeList" style="min-height:120px"></textarea></label>
     </div>
 
     <div class="box">
@@ -293,6 +296,7 @@ const DEFAULT_SETTINGS = {
   name:'', designation:'', office:'', hq:'', supervisor:'', vehicle:'অফিসিয়াল গাড়ি',
   dep:'10:10', arr:'10:40', move:'13:00', ret:'17:20', blocksPerTrip:'2', diaryLayout:'columns',
   defaultPurpose:'প্রদর্শনী পর্যবেক্ষণ, মাঠ পরিদর্শন ও কৃষকদের পরামর্শ প্রদান',
+  purposeList:['প্রদর্শনী পর্যবেক্ষণ','মাঠ পরিদর্শন','কৃষকদের পরামর্শ প্রদান','উঠান বৈঠক পরিচালনা','সার ও কীটনাশকের দোকান পরিদর্শন','এসএএও-এর কার্যক্রম তদারকি','বালাই পরিস্থিতি পর্যবেক্ষণ'],
   blocks:[], recurring:[],
   activities:[
     'প্রদর্শনীর সার্বিক অবস্থা ও অন্যান্য কার্যক্রম পর্যবেক্ষণ',
@@ -424,6 +428,7 @@ function renderSetup(){
   document.querySelectorAll('[data-s]').forEach(i => { i.value = S[i.dataset.s] ?? ''; });
   $('acts').value = S.activities.join('\n');
   $('projects').value = S.projects.join('\n');
+  $('purposeList').value = (S.purposeList || []).join('\n');
   renderBlocks(); renderRecs(); fillLists();
 }
 function fillLists(){
@@ -432,6 +437,7 @@ function fillLists(){
 }
 document.querySelectorAll('[data-s]').forEach(i => i.addEventListener('input', () => { S[i.dataset.s] = i.value; saveSettings(); }));
 $('acts').oninput = e => { S.activities = e.target.value.split('\n').map(s=>s.trim()).filter(Boolean); fillLists(); saveSettings(); };
+$('purposeList').oninput = e => { S.purposeList = e.target.value.split('\n').map(s=>s.trim()).filter(Boolean); saveSettings(); };
 $('projects').oninput = e => { S.projects = e.target.value.split('\n').map(s=>s.trim()).filter(Boolean); fillLists(); saveSettings(); };
 
 function renderBlocks(){
@@ -530,7 +536,7 @@ $('tours').oninput = e => { M.tours = e.target.value; saveMonth(); };
 const blockOf = name => S.blocks.find(b => b.name === name);
 function newVisit(block, work){ return {block: block || '', saao:'', project:'', farmers:'', work: work || ''}; }
 function newField(date){
-  return {id:uid(), kind:'field', date, visits:[newVisit()], purpose:'', dest:'', dep:S.dep, arr:S.arr, move:S.move, ret:S.ret, vehicle:S.vehicle, km:'', cancelled:false, reason:'', custom:''};
+  return {id:uid(), kind:'field', date, visits:[newVisit()], purposes:[], purpose:'', dest:'', dep:S.dep, arr:S.arr, move:S.move, ret:S.ret, vehicle:S.vehicle, km:'', cancelled:false, reason:'', custom:''};
 }
 function newOther(date, r){
   return {id:uid(), kind:'other', date, visits:[], dest: r ? r.dest : '', purpose: r ? r.purpose : '',
@@ -562,6 +568,7 @@ function generate(){
   let bi = ((y * 12 + mo) * n * per) % blocks.length;
   for(let i=0; i<n; i++){
     const r = newField(days[Math.floor(i * days.length / n)]);
+    r.purposes = (S.purposeList || []).slice(0, 3);
     r.visits = [];
     for(let j=0; j<per; j++){
       r.visits.push(newVisit(blocks[bi % blocks.length].name, acts[(i + j*2) % acts.length]));
@@ -583,9 +590,27 @@ $('addField').onclick = () => { const r = newField(firstDay()); M.rows.push(r); 
 $('addOther').onclick = () => { const r = newOther(firstDay()); M.rows.push(r); openId = r.id; renderRows(); saveMonth(); };
 
 /* অগ্রিম সূচি চূড়ান্ত করা */
-function placesOf(r){ return r.kind === 'field' ? r.visits.map(v => v.block).filter(Boolean).join(', ') + (r.visits.some(v=>v.block) ? ' ব্লক' : '') : r.dest; }
-function advPurpose(r){ return r.kind === 'field' ? (r.purpose || S.defaultPurpose) : r.purpose; }
-function snapshot(){ return M.rows.filter(r => !r.cancelled).map(r => ({id:r.id, date:r.date, place:placesOf(r), purpose:advPurpose(r)})); }
+function unionLabel(u){ u = (u || '').trim(); if(!u) return ''; return /(ইউনিয়ন|পৌরসভা)$/.test(u) ? u : u + ' ইউনিয়ন'; }
+function joinBn(a){ return a.length <= 1 ? a.join('') : a.slice(0,-1).join(', ') + ' ও ' + a[a.length-1]; }
+function placesOf(r){
+  if(r.kind !== 'field') return r.dest;
+  const groups = [];
+  r.visits.filter(v => v.block).forEach(v => {
+    const u = unionLabel((blockOf(v.block) || {}).union);
+    let g = groups.find(x => x.u === u); if(!g){ g = {u, b:[]}; groups.push(g); }
+    g.b.push(v.block);
+  });
+  return groups.map(g => g.u ? `${g.u} (${joinBn(g.b)} ব্লক)` : `${joinBn(g.b)} ব্লক`).join(', ');
+}
+function advPurpose(r){
+  const list = [...(r.purposes || []), ...(r.purpose ? [r.purpose] : [])];
+  if(r.kind === 'field' && !list.length) list.push(S.defaultPurpose);
+  return list.join('\n');
+}
+function fmtPurpose(t){ const a = String(t || '').split('\n').filter(Boolean); return a.length > 1 ? a.map((x,i) => `${bn(i+1)}. ${esc(x)}`).join('<br>') : esc(a[0] || ''); }
+function placeKey(r){ return r.kind === 'field' ? 'B:' + r.visits.map(v => v.block).filter(Boolean).join('|') : 'D:' + r.dest; }
+function sameAsAdvance(s, r){ return s.date === r.date && (s.key != null ? s.key === placeKey(r) : s.place === placesOf(r)); }
+function snapshot(){ return M.rows.filter(r => !r.cancelled).map(r => ({id:r.id, date:r.date, place:placesOf(r), key:placeKey(r), purpose:advPurpose(r)})); }
 function renderLock(){
   const b = $('lockBox');
   if(M.locked){
@@ -603,7 +628,7 @@ function statusOf(r){
   const s = (M.advance || []).find(a => a.id === r.id);
   if(!s) return r.cancelled ? 'cancel' : 'added';
   if(r.cancelled) return 'cancel';
-  return (s.date !== r.date || s.place !== placesOf(r)) ? 'changed' : '';
+  return sameAsAdvance(s, r) ? '' : 'changed';
 }
 const BADGE = {changed:'<span class="badge ch">পরিবর্তিত</span>', cancel:'<span class="badge cn">বাতিল</span>', added:'<span class="badge ad">অতিরিক্ত</span>'};
 
@@ -662,9 +687,11 @@ function cardHtml(r, i){
     <div class="kind"><button data-kind="field" aria-pressed="${isF}">মাঠ ভ্রমণ</button><button data-kind="other" aria-pressed="${!isF}">সভা / অন্য ভ্রমণ</button></div>
     <div class="g2">
       <label class="f"><span>তারিখ</span><input type="date" data-k="date" value="${r.date}"></label>
-      ${isF ? `<label class="f"><span>অগ্রিম সূচির উদ্দেশ্য (খালি রাখলে সাধারণটা)</span><input data-k="purpose" value="${esc(r.purpose)}" placeholder="${esc(S.defaultPurpose)}"></label>`
-            : `<label class="f"><span>গন্তব্য</span><input data-k="dest" value="${esc(r.dest)}" placeholder="যেমন: জেলা কৃষি অফিস, চট্টগ্রাম"></label>`}
+      ${isF ? '' : `<label class="f"><span>গন্তব্য</span><input data-k="dest" value="${esc(r.dest)}" placeholder="যেমন: জেলা কৃষি অফিস, চট্টগ্রাম"></label>`}
     </div>
+    ${isF ? `<div class="f"><span class="hint" style="display:block;margin:6px 0 2px">অগ্রিম সূচির উদ্দেশ্য (একাধিক বাছাই করা যায়)</span>
+      <div class="chips">${[...new Set([...(S.purposeList || []), ...(r.purposes || [])])].map(p => `<button type="button" data-pp="${esc(p)}" aria-pressed="${(r.purposes || []).includes(p)}">${esc(p)}</button>`).join('')}</div>
+      <input data-k="purpose" value="${esc(r.purpose)}" placeholder="তালিকায় না থাকলে এখানে লিখুন (ঐচ্ছিক)"></div>` : ''}
     ${isF ? r.visits.map((v, j) => `
       <div class="visit">
         <div class="vh"><span>${bn(j+1)}ম ব্লক</span>${r.visits.length > 1 ? `<button class="btn ghost small danger" data-rmv="${j}">সরান</button>` : ''}</div>
@@ -720,6 +747,12 @@ $('rows').addEventListener('input', e => {
 });
 $('rows').addEventListener('click', e => {
   const t = e.target; const [, r] = rowOf(t); if(!r) return;
+  if(t.dataset.pp != null){
+    r.purposes = r.purposes || [];
+    const p = t.dataset.pp, i = r.purposes.indexOf(p);
+    if(i >= 0) r.purposes.splice(i, 1); else r.purposes.push(p);
+    t.setAttribute('aria-pressed', i < 0); saveMonth(); return;
+  }
   if(t.dataset.kind){ if(r.kind !== t.dataset.kind){ r.kind = t.dataset.kind; if(r.kind === 'field' && !r.visits.length) r.visits = [newVisit()]; rerender(r.id); saveMonth(); } }
   else if(t.hasAttribute('data-addv')){ r.visits.push(newVisit()); rerender(r.id); saveMonth(); }
   else if(t.dataset.rmv){ r.visits.splice(Number(t.dataset.rmv), 1); rerender(r.id); saveMonth(); }
@@ -741,7 +774,7 @@ function signBlock(){
 function docAdvance(){
   const list = M.locked ? M.advance : snapshot();
   return govHeader('অগ্রিম ভ্রমণসূচি') + `<table><thead><tr><th>ক্রমিক</th><th>তারিখ</th><th>বার</th><th>ভ্রমণের স্থান</th><th>ভ্রমণের উদ্দেশ্য</th><th>মন্তব্য</th></tr></thead><tbody>
-  ${[...list].sort((a,b)=>a.date.localeCompare(b.date)).map((a,i) => `<tr><td class="c">${bn(i+1)}</td><td class="c">${fmtDate(a.date)}</td><td class="c">${dayName(a.date)}</td><td>${esc(a.place)}</td><td>${esc(a.purpose)}</td><td></td></tr>`).join('')}
+  ${[...list].sort((a,b)=>a.date.localeCompare(b.date)).map((a,i) => `<tr><td class="c">${bn(i+1)}</td><td class="c">${fmtDate(a.date)}</td><td class="c">${dayName(a.date)}</td><td>${esc(a.place)}</td><td>${fmtPurpose(a.purpose)}</td><td></td></tr>`).join('')}
   </tbody></table>` + signBlock();
 }
 function docRevised(){
@@ -750,7 +783,7 @@ function docRevised(){
   snap.forEach(s => {
     const r = M.rows.find(x => x.id === s.id);
     if(!r || r.cancelled) items.push({sort:s.date, old:s, now:null, reason: r ? r.reason : ''});
-    else items.push({sort:r.date, old:s, now:r, reason:r.reason, same: s.date === r.date && s.place === placesOf(r)});
+    else items.push({sort:s.date, old:s, now:r, reason:r.reason, same: sameAsAdvance(s, r)});
   });
   M.rows.filter(r => !r.cancelled && !snap.some(s => s.id === r.id)).forEach(r => items.push({sort:r.date, old:null, now:r, reason:r.reason}));
   items.sort((a,b) => a.sort.localeCompare(b.sort));
@@ -759,7 +792,7 @@ function docRevised(){
   <tr><th>তারিখ</th><th>স্থান</th><th>তারিখ</th><th>স্থান</th><th>উদ্দেশ্য</th></tr></thead><tbody>
   ${items.map((it,i) => `<tr><td class="c">${bn(i+1)}</td>
     ${it.old ? `<td class="c">${fmtDate(it.old.date)}</td><td>${esc(it.old.place)}</td>` : `<td class="c" colspan="2">অগ্রিম সূচিতে ছিল না</td>`}
-    ${it.now ? `<td class="c">${fmtDate(it.now.date)}</td><td>${esc(placesOf(it.now))}</td><td>${esc(advPurpose(it.now))}</td>` : `<td class="c" colspan="3">ভ্রমণ বাতিল</td>`}
+    ${it.now ? `<td class="c">${fmtDate(it.now.date)}</td><td>${esc(placesOf(it.now))}</td><td>${fmtPurpose(advPurpose(it.now))}</td>` : `<td class="c" colspan="3">ভ্রমণ বাতিল</td>`}
     <td>${it.same ? 'অপরিবর্তিত' : esc(it.reason)}</td></tr>`).join('')}
   </tbody></table>` + signBlock();
 }
