@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ভ্রমণসূচি ও ভ্রমণ বিবরণী</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Tiro+Bangla&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* ============ কনফিগারেশন ============
+   Supabase প্রজেক্ট > Project Settings > API থেকে দুটি মান এখানে বসান।
+   খালি রাখলে অ্যাপ "ডেমো মোডে" চলবে (তথ্য শুধু ওই ব্রাউজারে থাকবে)। */
+window.APP_CONFIG = {
+  SUPABASE_URL: 'https://micjeygkhcvzwchyielm.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pY2pleWdraGN2endjaHlpZWxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNjAxNzgsImV4cCI6MjEwNTgzNjE3OH0.AGHCaFpZRHQoo90TIQ-sJXNMXQgHzUzusCxHBw4NJ8A'
+};
+</script>
+<style>
+:root{
+  --paper:#eef2ea; --surface:#ffffff; --ink:#1c2a21; --muted:#5b6b60; --rule:#d3dccd;
+  --leaf:#2d6a3e; --leaf-soft:#dfeadf; --turmeric:#c38a14; --turmeric-ink:#2a1d00; --danger:#a33a2a; --warn-bg:#fff3d6; --warn-ink:#5a3d00;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#141a16; --surface:#1d2520; --ink:#e4ebe4; --muted:#9aab9f; --rule:#33403a;
+    --leaf:#7fbf8f; --leaf-soft:#243328; --turmeric:#e0a93a; --turmeric-ink:#1c1300; --danger:#e07a68; --warn-bg:#3a2e12; --warn-ink:#f3dca6;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141a16; --surface:#1d2520; --ink:#e4ebe4; --muted:#9aab9f; --rule:#33403a;
+  --leaf:#7fbf8f; --leaf-soft:#243328; --turmeric:#e0a93a; --turmeric-ink:#1c1300; --danger:#e07a68; --warn-bg:#3a2e12; --warn-ink:#f3dca6;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Hind Siliguri","Noto Sans Bengali","SolaimanLipi",sans-serif;font-size:16px;line-height:1.55}
+.wrap{max-width:900px;margin:0 auto;padding:16px 16px 70px}
+[hidden]{display:none!important}
+header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:6px 0 12px;border-bottom:2px solid var(--leaf);margin-bottom:10px}
+header.top h1{font-family:"Tiro Bangla",serif;font-weight:400;font-size:1.55rem;margin:0;line-height:1.3}
+header.top .who{font-size:.85rem;color:var(--muted);text-align:right}
+header.top .who button{margin-top:4px}
+.banner{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:8px 12px;font-size:.9rem;margin:8px 0}
+nav.tabs{display:flex;gap:6px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--paper);padding:8px 0;z-index:5;overflow-x:auto}
+nav.tabs button{flex:1;min-width:84px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;padding:9px 6px;border-radius:10px;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{background:var(--leaf);color:var(--surface);border-color:var(--leaf)}
+.panel{display:none}.panel.on{display:block}
+.box{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px;margin:12px 0}
+.box h2{font-size:1.08rem;margin:0 0 8px;font-weight:700}
+.hint{color:var(--muted);font-size:.9rem;margin:4px 0 10px}
+label.f{display:block;margin:7px 0}
+label.f>span{display:block;font-size:.86rem;color:var(--muted);margin-bottom:3px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:8px 10px}
+textarea{min-height:110px;resize:vertical}
+input[type=checkbox]{width:auto}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--turmeric);outline-offset:2px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:0 10px}
+@media (max-width:600px){.g2{grid-template-columns:1fr}.g4{grid-template-columns:1fr 1fr}}
+.btn{font:inherit;font-weight:600;border-radius:9px;padding:9px 14px;cursor:pointer;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--turmeric);border-color:var(--turmeric);color:var(--turmeric-ink)}
+.btn.leaf{background:var(--leaf);border-color:var(--leaf);color:var(--surface)}
+.btn.small{padding:5px 10px;font-size:.86rem}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:default}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+.scroll{overflow-x:auto}
+table.grid{width:100%;border-collapse:collapse;min-width:600px}
+table.grid th{text-align:left;font-size:.82rem;color:var(--muted);font-weight:500;padding:4px}
+table.grid td{padding:3px 4px}
+.status{font-size:.82rem;color:var(--muted)}
+/* auth */
+.auth{max-width:420px;margin:40px auto}
+.auth h1{font-family:"Tiro Bangla",serif;font-weight:400;font-size:1.8rem;margin:0 0 4px;line-height:1.3}
+.auth .seg{display:flex;gap:6px;margin:16px 0 4px}
+.auth .seg button{flex:1}
+.msg{font-size:.9rem;margin-top:10px;min-height:1.2em}
+.msg.err{color:var(--danger)}
+/* trip cards */
+.trip{border:1px solid var(--rule);border-left:4px solid var(--leaf);border-radius:10px;background:var(--surface);margin:10px 0}
+.trip.other{border-left-color:var(--turmeric)}
+.trip.cancel{border-left-color:var(--danger)}
+.trip>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.trip>summary::-webkit-details-marker{display:none}
+.trip>summary .d{font-weight:700}
+.trip>summary .p{color:var(--muted);font-size:.9rem}
+.badge{font-size:.75rem;border-radius:20px;padding:2px 8px;white-space:nowrap;border:1px solid var(--rule)}
+.badge.ch{background:var(--warn-bg);color:var(--warn-ink);border-color:transparent}
+.badge.cn{color:var(--danger);border-color:var(--danger)}
+.badge.ad{background:var(--leaf-soft);color:var(--leaf);border-color:transparent}
+.trip .body{padding:0 12px 12px;border-top:1px dashed var(--rule)}
+.kind{display:flex;gap:6px;margin:10px 0 4px}
+.kind button{flex:1;font:inherit;padding:7px;border-radius:8px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);cursor:pointer}
+.kind button[aria-pressed="true"]{background:var(--leaf);color:var(--surface);border-color:var(--leaf)}
+.visit{background:var(--leaf-soft);border-radius:9px;padding:6px 10px 8px;margin:8px 0}
+.visit .vh{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.9rem;color:var(--leaf)}
+.preview{background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:10px;font-family:"Tiro Bangla",serif;font-size:.95rem;line-height:1.7;margin-top:8px;text-align:justify}
+.rec{border:1px solid var(--rule);border-radius:10px;padding:8px 10px;margin:8px 0}
+.seg2{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.seg2 button{font:inherit;border:1px solid var(--rule);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:20px;cursor:pointer}
+.seg2 button[aria-pressed="true"]{border-color:var(--turmeric);background:var(--turmeric);color:var(--turmeric-ink)}
+.warn{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:8px 10px;font-size:.9rem;margin:8px 0}
+.lockbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.months a{display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--rule);color:var(--ink);text-decoration:none;cursor:pointer}
+.months a:hover{color:var(--leaf)}
+.sheet-wrap{overflow-x:auto;background:#fff;border:1px solid var(--rule);border-radius:8px}
+/* printable sheet (preview) */
+.sheet{background:#fff;color:#000;font-family:"Tiro Bangla","Nikosh","SolaimanLipi",serif;padding:22px 24px;min-width:780px;font-size:14px;line-height:1.55}
+.sheet .gov{text-align:center}
+.sheet .gov .t2{font-size:17px;font-weight:700}
+.sheet h3{text-align:center;font-size:17px;margin:12px 0 6px;text-decoration:underline}
+.sheet .meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 20px;margin:8px 0}
+.sheet table{width:100%;border-collapse:collapse;margin-top:6px}
+.sheet th,.sheet td{border:1px solid #000;padding:4px 6px;vertical-align:top;text-align:left}
+.sheet th{text-align:center;font-weight:700}
+.sheet td.c{text-align:center}.sheet td.r{text-align:right}.sheet td.j{text-align:justify}
+.sheet .cert{margin-top:14px}
+.sheet .sign{display:flex;justify-content:space-between;margin-top:46px;gap:30px}
+.sheet .sign div{text-align:center;min-width:220px;border-top:1px dotted #000;padding-top:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ============ লগইন ============ -->
+<div class="wrap auth" id="authView" hidden>
+  <h1>ভ্রমণসূচি ও ভ্রমণ বিবরণী</h1>
+  <p class="hint">অগ্রিম ভ্রমণসূচি, সংশোধিত ভ্রমণসূচি ও ভ্রমণ বিবরণী এক জায়গা থেকে। কৃষি সম্প্রসারণ অধিদপ্তরের কর্মকর্তাদের জন্য।</p>
+  <div class="seg">
+    <button class="btn leaf" id="tabLogin" aria-pressed="true">লগইন</button>
+    <button class="btn" id="tabSignup" aria-pressed="false">নতুন অ্যাকাউন্ট</button>
+  </div>
+  <div class="box">
+    <label class="f" id="nameWrap" hidden><span>আপনার নাম</span><input id="aName" autocomplete="name"></label>
+    <label class="f"><span>ইমেইল</span><input id="aEmail" type="email" autocomplete="email"></label>
+    <label class="f"><span>পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)</span><input id="aPass" type="password" autocomplete="current-password"></label>
+    <div class="acts">
+      <button class="btn primary" id="aSubmit">লগইন করুন</button>
+      <button class="btn ghost small" id="aForgot">পাসওয়ার্ড ভুলে গেছেন?</button>
+    </div>
+    <div class="msg" id="aMsg"></div>
+  </div>
+</div>
+
+<!-- ============ মূল অ্যাপ ============ -->
+<div class="wrap" id="appView" hidden>
+  <header class="top">
+    <h1>ভ্রমণসূচি ও ভ্রমণ বিবরণী</h1>
+    <div class="who"><div id="whoName"></div><div class="status" id="saveState"></div><button class="btn small" id="logout">লগআউট</button></div>
+  </header>
+  <div class="banner" id="demoBanner" hidden>ডেমো মোড: তথ্য শুধু এই ব্রাউজারে থাকছে। সবার জন্য অ্যাকাউন্ট চালু করতে README দেখুন।</div>
+
+  <nav class="tabs" role="tablist">
+    <button data-tab="plan" aria-selected="true">মাসের ভ্রমণ</button>
+    <button data-tab="docs" aria-selected="false">কাগজ</button>
+    <button data-tab="archive" aria-selected="false">পুরোনো মাস</button>
+    <button data-tab="setup" aria-selected="false">সেটআপ</button>
+  </nav>
+
+  <!-- মাসের ভ্রমণ -->
+  <section class="panel on" id="p-plan">
+    <div class="box">
+      <div class="g2">
+        <label class="f"><span>মাস</span><input type="month" id="month"></label>
+        <label class="f"><span>মাঠ ভ্রমণের সংখ্যা</span><input type="number" id="tours" min="1" max="26"></label>
+      </div>
+      <label class="f"><span>সরকারি ছুটির তারিখ (শুক্র-শনি ছাড়া), কমা দিয়ে</span><input id="holidays" placeholder="যেমন: ১৬, ২৬"></label>
+      <div class="acts">
+        <button class="btn primary" id="gen">স্বয়ংক্রিয় সূচি তৈরি করুন</button>
+        <button class="btn" id="addField">মাঠ ভ্রমণ যোগ</button>
+        <button class="btn" id="addOther">অন্য ভ্রমণ যোগ</button>
+      </div>
+      <p class="hint" id="genHint"></p>
+    </div>
+    <div class="box lockbar" id="lockBox"></div>
+    <div id="rows"></div>
+  </section>
+
+  <!-- কাগজ -->
+  <section class="panel" id="p-docs">
+    <div class="box">
+      <div class="seg2" id="docSeg">
+        <button data-doc="advance" aria-pressed="true">অগ্রিম ভ্রমণসূচি</button>
+        <button data-doc="revised" aria-pressed="false">সংশোধিত ভ্রমণসূচি</button>
+        <button data-doc="diary" aria-pressed="false">ভ্রমণ বিবরণী</button>
+      </div>
+      <div id="docWarn"></div>
+      <div class="acts">
+        <button class="btn leaf" id="dlWord">Word ফাইল নামান</button>
+        <button class="btn" id="print">প্রিন্ট / PDF</button>
+      </div>
+    </div>
+    <div class="sheet-wrap"><div class="sheet" id="sheet"></div></div>
+  </section>
+
+  <!-- পুরোনো মাস -->
+  <section class="panel" id="p-archive">
+    <div class="box">
+      <h2>সংরক্ষিত মাসগুলো</h2>
+      <p class="hint">যেকোনো মাসে চাপ দিলে সেই মাসের ভ্রমণ ও কাগজ খুলবে।</p>
+      <div class="months" id="monthList"></div>
+    </div>
+  </section>
+
+  <!-- সেটআপ -->
+  <section class="panel" id="p-setup">
+    <div class="box">
+      <h2>আপনার তথ্য</h2>
+      <div class="g2">
+        <label class="f"><span>নাম</span><input data-s="name" placeholder="যেমন: মোঃ মাসুম কবির"></label>
+        <label class="f"><span>পদবি ও কর্মস্থল</span><input data-s="designation" placeholder="যেমন: উপজেলা কৃষি অফিসার, রাউজান, চট্টগ্রাম"></label>
+        <label class="f"><span>দপ্তর (কাগজের শিরোনামে)</span><input data-s="office" placeholder="যেমন: উপজেলা কৃষি অফিস, রাউজান, চট্টগ্রাম"></label>
+        <label class="f"><span>যেখান থেকে রওয়ানা দেন</span><input data-s="hq" placeholder="যেমন: উপজেলা কৃষি অফিস,রাউজান,চট্টগ্রাম"></label>
+        <label class="f"><span>অনুমোদনকারী কর্মকর্তা</span><input data-s="supervisor" placeholder="যেমন: উপপরিচালক, ডিএই, চট্টগ্রাম"></label>
+        <label class="f"><span>সাধারণ যানবাহন</span><input data-s="vehicle" placeholder="অফিসিয়াল গাড়ি"></label>
+      </div>
+      <div class="g4">
+        <label class="f"><span>রওয়ানা</span><input type="time" data-s="dep"></label>
+        <label class="f"><span>প্রথম ব্লকে পৌঁছানো</span><input type="time" data-s="arr"></label>
+        <label class="f"><span>পরের ব্লকে যাওয়া</span><input type="time" data-s="move"></label>
+        <label class="f"><span>কর্মস্থলে ফেরা</span><input type="time" data-s="ret"></label>
+      </div>
+      <div class="g2">
+        <label class="f"><span>প্রতি মাঠ ভ্রমণে ব্লক</span><select data-s="blocksPerTrip"><option value="1">১টি</option><option value="2">২টি</option><option value="3">৩টি</option></select></label>
+        <label class="f"><span>ভ্রমণ বিবরণীর ছক</span><select data-s="diaryLayout"><option value="columns">কলামসহ (ক্রমিক, সময়, দূরত্ব, বিবরণ)</option><option value="narrative">শুধু তারিখ ও বিবরণ</option></select></label>
+      </div>
+      <label class="f"><span>অগ্রিম সূচিতে মাঠ ভ্রমণের উদ্দেশ্য</span><input data-s="defaultPurpose"></label>
+    </div>
+
+    <div class="box">
+      <h2>ব্লক ও এসএএও</h2>
+      <p class="hint">কর্মস্থল থেকে একমুখী দূরত্ব দিন। মাঠ ভ্রমণে সবচেয়ে দূরের ব্লকের দূরত্বের দ্বিগুণ আসা-যাওয়া হিসেবে বসবে, চাইলে প্রতিটি ভ্রমণে বদলানো যাবে। কাছাকাছি ব্লকগুলো পরপর রাখুন, স্বয়ংক্রিয় সূচিতে পাশাপাশি ব্লক একদিনে পড়বে।</p>
+      <div class="scroll"><table class="grid"><thead><tr><th>ব্লক</th><th>ইউনিয়ন</th><th>এসএএও-এর নাম</th><th style="width:90px">দূরত্ব (কিমি)</th><th></th></tr></thead><tbody id="blocksBody"></tbody></table></div>
+      <label class="f"><span>একসাথে অনেক ব্লক যোগ: প্রতি লাইনে "ব্লক, ইউনিয়ন, এসএএও, কিমি"</span><textarea id="bulk" style="min-height:80px" placeholder="গহিরা, গহিরা, রোহেল মুন্না, ১৫&#10;নোয়াজিশপুর, নোয়াজিশপুর, শহীদুল ইসলাম, ১২"></textarea></label>
+      <div class="acts"><button class="btn small leaf" id="bulkAdd">তালিকা যোগ করুন</button><button class="btn small" id="addBlock">একটি ব্লক যোগ</button></div>
+    </div>
+
+    <div class="box">
+      <h2>প্রতি মাসের নির্দিষ্ট ভ্রমণ</h2>
+      <p class="hint">যেমন জেলার মাসিক সমন্বয় সভা। স্বয়ংক্রিয় সূচি তৈরির সময় এগুলো নিজে বসে যাবে, আর সেদিন কোনো মাঠ ভ্রমণ পড়বে না।</p>
+      <div id="recList"></div>
+      <div class="acts"><button class="btn small" id="addRec">নির্দিষ্ট ভ্রমণ যোগ</button></div>
+    </div>
+
+    <div class="box">
+      <h2>কাজের তৈরি বাক্যাংশ</h2>
+      <p class="hint">প্রতি লাইনে একটি। ব্লকের কাজ লেখার সময় এগুলো থেকে বেছে নেওয়া যাবে। বাক্যাংশ এমনভাবে লিখুন যেন পরে "শেষে" বসলে বাক্য ঠিক থাকে।</p>
+      <textarea id="acts"></textarea>
+      <label class="f"><span>প্রকল্পের নাম (প্রতি লাইনে একটি)</span><textarea id="projects" style="min-height:70px"></textarea></label>
+    </div>
+  </section>
+</div>
+
+<datalist id="dlReasons">
+  <option value="জরুরি সভা থাকায়"><option value="ঊর্ধ্বতন কর্তৃপক্ষের নির্দেশে"><option value="প্রতিকূল আবহাওয়ার কারণে">
+  <option value="সরকারি ছুটি ঘোষণা হওয়ায়"><option value="অফিসিয়াল কাজে ব্যস্ত থাকায়"><option value="জরুরি মাঠ পরিস্থিতির কারণে">
+</datalist>
+<datalist id="dlActs"></datalist>
+<datalist id="dlProjects"></datalist>
+
+<script>
+(function(){
+'use strict';
+/* ---------------- ছোট সহায়ক ---------------- */
+const BN = '০১২৩৪৫৬৭৮৯';
+const bn = v => String(v).replace(/\d/g, d => BN[d]);
+const en = v => String(v ?? '').replace(/[০-৯]/g, d => BN.indexOf(d));
+const MONTHS = ['জানুয়ারী','ফেব্রুয়ারী','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+const DAYS = ['রবিবার','সোমবার','মঙ্গলবার','বুধবার','বৃহস্পতিবার','শুক্রবার','শনিবার'];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const num = v => { const n = parseFloat(en(v)); return isNaN(n) ? 0 : n; };
+const clone = o => JSON.parse(JSON.stringify(o));
+const pad = n => String(n).padStart(2,'0');
+
+function fmtDate(iso){ if(!iso) return ''; const [y,m,d] = iso.split('-'); return bn(`${d}.${m}.${y}`); }
+function dayName(iso){ if(!iso) return ''; const [y,m,d] = iso.split('-').map(Number); return DAYS[new Date(y,m-1,d).getDay()]; }
+function tl(t){
+  if(!t) return '....';
+  const [h,m] = t.split(':').map(Number);
+  const part = h < 12 ? 'সকাল' : h < 15 ? 'দুপুর' : h < 18 ? 'বিকাল' : 'সন্ধ্যা';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${part} ${bn(h12)}.${bn(pad(m))}`;
+}
+
+/* ---------------- ডিফল্ট ---------------- */
+const DEFAULT_SETTINGS = {
+  name:'', designation:'', office:'', hq:'', supervisor:'', vehicle:'অফিসিয়াল গাড়ি',
+  dep:'10:10', arr:'10:40', move:'13:00', ret:'17:20', blocksPerTrip:'2', diaryLayout:'columns',
+  defaultPurpose:'প্রদর্শনী পর্যবেক্ষণ, মাঠ পরিদর্শন ও কৃষকদের পরামর্শ প্রদান',
+  blocks:[], recurring:[],
+  activities:[
+    'প্রদর্শনীর সার্বিক অবস্থা ও অন্যান্য কার্যক্রম পর্যবেক্ষণ',
+    'বীজতলা স্থাপন ও অন্যান্য কার্যক্রম পর্যবেক্ষণ',
+    'প্রদর্শনী, রবি ফসলের মাঠ এবং সার ও কীটনাশকের দোকান পরিদর্শন',
+    'প্রদর্শনী, রোপা আমন শস্য কর্তন এবং সার ও কীটনাশকের দোকান পরিদর্শন',
+    'ক্ষতিকর পোকামাকড় দমনের জন্য আলোর ফাঁদ স্থাপনের পরামর্শ প্রদান'
+  ],
+  projects:['পার্টনার','রাজস্ব']
+};
+
+/* ---------------- স্টোরেজ: Supabase বা ডেমো ---------------- */
+const CFG = window.APP_CONFIG || {};
+const CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase);
+const sb = CLOUD ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
+let USER = null;
+
+const Store = {
+  async getProfile(){
+    if(!CLOUD) return lsGet('profile');
+    const {data, error} = await sb.from('profiles').select('data').eq('user_id', USER.id).maybeSingle();
+    if(error) throw error; return data ? data.data : null;
+  },
+  async saveProfile(d){
+    if(!CLOUD) return lsSet('profile', d);
+    const {error} = await sb.from('profiles').upsert({user_id:USER.id, data:d, updated_at:new Date().toISOString()});
+    if(error) throw error;
+  },
+  async getMonth(ym){
+    if(!CLOUD) return lsGet('m-'+ym);
+    const {data, error} = await sb.from('tour_months').select('data').eq('user_id', USER.id).eq('ym', ym).maybeSingle();
+    if(error) throw error; return data ? data.data : null;
+  },
+  async saveMonth(ym, d){
+    if(!CLOUD){ lsSet('m-'+ym, d); const idx = lsGet('months') || {}; idx[ym] = new Date().toISOString(); return lsSet('months', idx); }
+    const {error} = await sb.from('tour_months').upsert({user_id:USER.id, ym, data:d, updated_at:new Date().toISOString()});
+    if(error) throw error;
+  },
+  async listMonths(){
+    if(!CLOUD){ const idx = lsGet('months') || {}; return Object.keys(idx).sort().reverse().map(ym => ({ym, updated_at:idx[ym]})); }
+    const {data, error} = await sb.from('tour_months').select('ym,updated_at').eq('user_id', USER.id).order('ym', {ascending:false});
+    if(error) throw error; return data || [];
+  }
+};
+function lsGet(k){ try{ const v = localStorage.getItem('bhromon:'+k); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem('bhromon:'+k, JSON.stringify(v)); }catch(e){} }
+
+/* ---------------- সংরক্ষণ (দেরিতে, একসাথে) ---------------- */
+let S = clone(DEFAULT_SETTINGS);
+let M = null, curYM = '', curDoc = 'advance';
+const pending = {};
+function setSaveState(t){ $('saveState').textContent = t; }
+function queue(key, fn){
+  setSaveState('সংরক্ষণ হচ্ছে…');
+  clearTimeout(pending[key]?.t);
+  pending[key] = {fn, t:setTimeout(() => run(key), 900)};
+}
+async function run(key){
+  const p = pending[key]; if(!p) return; delete pending[key];
+  try{ await p.fn(); if(!Object.keys(pending).length) setSaveState('সংরক্ষিত'); }
+  catch(e){ console.error(e); setSaveState('সংরক্ষণ হয়নি, ইন্টারনেট দেখুন'); }
+}
+async function flush(){ await Promise.all(Object.keys(pending).map(k => { clearTimeout(pending[k].t); return run(k); })); }
+const saveSettings = () => queue('profile', () => Store.saveProfile(clone(S)));
+const saveMonth = () => { const ym = curYM, d = clone(M); queue('m-'+ym, () => Store.saveMonth(ym, d)); };
+window.addEventListener('beforeunload', e => { if(Object.keys(pending).length){ flush(); e.preventDefault(); e.returnValue=''; } });
+
+/* ---------------- লগইন ---------------- */
+let signupMode = false;
+function authMsg(t, err){ $('aMsg').textContent = t; $('aMsg').className = 'msg' + (err ? ' err' : ''); }
+function setMode(sign){
+  signupMode = sign;
+  $('nameWrap').hidden = !sign;
+  $('tabLogin').className = 'btn' + (sign ? '' : ' leaf'); $('tabSignup').className = 'btn' + (sign ? ' leaf' : '');
+  $('tabLogin').setAttribute('aria-pressed', !sign); $('tabSignup').setAttribute('aria-pressed', sign);
+  $('aSubmit').textContent = sign ? 'অ্যাকাউন্ট খুলুন' : 'লগইন করুন';
+  $('aPass').autocomplete = sign ? 'new-password' : 'current-password';
+  authMsg('');
+}
+$('tabLogin').onclick = () => setMode(false);
+$('tabSignup').onclick = () => setMode(true);
+function authErr(e){
+  const m = (e && e.message) || '';
+  if(/Invalid login/i.test(m)) return 'ইমেইল বা পাসওয়ার্ড ভুল।';
+  if(/not confirmed/i.test(m)) return 'ইমেইল এখনো নিশ্চিত করা হয়নি। ইনবক্সে পাঠানো লিংকে চাপুন।';
+  if(/already registered/i.test(m)) return 'এই ইমেইলে আগেই অ্যাকাউন্ট আছে। লগইন করুন।';
+  if(/least 6/i.test(m)) return 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';
+  return 'সমস্যা হয়েছে: ' + m;
+}
+$('aSubmit').onclick = async () => {
+  const email = $('aEmail').value.trim(), password = $('aPass').value;
+  if(!email || !password) return authMsg('ইমেইল ও পাসওয়ার্ড দিন।', true);
+  $('aSubmit').disabled = true;
+  try{
+    if(signupMode){
+      const name = $('aName').value.trim();
+      const {data, error} = await sb.auth.signUp({email, password, options:{data:{name}, emailRedirectTo: location.origin + location.pathname}});
+      if(error) throw error;
+      if(!data.session) authMsg('অ্যাকাউন্ট খোলা হয়েছে। ইমেইলে পাঠানো লিংকে চাপ দিয়ে নিশ্চিত করুন, তারপর লগইন করুন।');
+    } else {
+      const {error} = await sb.auth.signInWithPassword({email, password});
+      if(error) throw error;
+    }
+  }catch(e){ authMsg(authErr(e), true); }
+  $('aSubmit').disabled = false;
+};
+$('aForgot').onclick = async () => {
+  const email = $('aEmail').value.trim();
+  if(!email) return authMsg('আগে ইমেইল লিখুন।', true);
+  const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname});
+  authMsg(error ? authErr(error) : 'পাসওয়ার্ড বদলানোর লিংক ইমেইলে পাঠানো হয়েছে।', !!error);
+};
+$('logout').onclick = async () => {
+  await flush();
+  if(CLOUD){ await sb.auth.signOut(); location.reload(); }
+};
+
+/* ---------------- ট্যাব ---------------- */
+function openTab(name){
+  document.querySelectorAll('nav.tabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + name));
+  if(name === 'docs') renderDoc();
+  if(name === 'archive') renderArchive();
+}
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => openTab(b.dataset.tab));
+
+/* ---------------- সেটআপ ---------------- */
+function renderSetup(){
+  document.querySelectorAll('[data-s]').forEach(i => { i.value = S[i.dataset.s] ?? ''; });
+  $('acts').value = S.activities.join('\n');
+  $('projects').value = S.projects.join('\n');
+  renderBlocks(); renderRecs(); fillLists();
+}
+function fillLists(){
+  $('dlActs').innerHTML = S.activities.map(a => `<option value="${esc(a)}">`).join('');
+  $('dlProjects').innerHTML = S.projects.map(a => `<option value="${esc(a)}">`).join('');
+}
+document.querySelectorAll('[data-s]').forEach(i => i.addEventListener('input', () => { S[i.dataset.s] = i.value; saveSettings(); }));
+$('acts').oninput = e => { S.activities = e.target.value.split('\n').map(s=>s.trim()).filter(Boolean); fillLists(); saveSettings(); };
+$('projects').oninput = e => { S.projects = e.target.value.split('\n').map(s=>s.trim()).filter(Boolean); fillLists(); saveSettings(); };
+
+function renderBlocks(){
+  $('blocksBody').innerHTML = S.blocks.length ? S.blocks.map(b => `
+    <tr data-id="${b.id}">
+      <td><input data-k="name" value="${esc(b.name)}" aria-label="ব্লক"></td>
+      <td><input data-k="union" value="${esc(b.union)}" aria-label="ইউনিয়ন"></td>
+      <td><input data-k="saao" value="${esc(b.saao)}" aria-label="এসএএও"></td>
+      <td><input data-k="km" inputmode="decimal" value="${esc(b.km)}" aria-label="দূরত্ব"></td>
+      <td><button class="btn ghost small danger" data-del="${b.id}" aria-label="মুছুন">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="5" class="hint">এখনো কোনো ব্লক নেই। নিচের বাক্সে একসাথে তালিকা দিন।</td></tr>`;
+}
+$('blocksBody').addEventListener('input', e => {
+  const tr = e.target.closest('tr'); if(!tr || !tr.dataset.id) return;
+  const b = S.blocks.find(x => x.id === tr.dataset.id); const k = e.target.dataset.k;
+  const old = b.name; b[k] = e.target.value;
+  if(k === 'name' && M) M.rows.forEach(r => (r.visits||[]).forEach(v => { if(v.block === old) v.block = b.name; }));
+  saveSettings();
+});
+$('blocksBody').addEventListener('click', e => {
+  const id = e.target.dataset.del; if(!id) return;
+  S.blocks = S.blocks.filter(b => b.id !== id); renderBlocks(); saveSettings();
+});
+$('addBlock').onclick = () => { S.blocks.push({id:uid(), name:'', union:'', saao:'', km:''}); renderBlocks(); saveSettings(); };
+$('bulkAdd').onclick = () => {
+  const have = new Set(S.blocks.map(b => b.name));
+  $('bulk').value.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => {
+    const [name, union='', saao='', km=''] = l.split(/[,،]/).map(x => x.trim());
+    if(name && !have.has(name)){ S.blocks.push({id:uid(), name, union, saao, km:en(km)}); have.add(name); }
+  });
+  $('bulk').value = ''; renderBlocks(); saveSettings();
+};
+
+/* নির্দিষ্ট মাসিক ভ্রমণ */
+const NTH = [['1','প্রথম'],['2','দ্বিতীয়'],['3','তৃতীয়'],['4','চতুর্থ'],['last','শেষ']];
+function renderRecs(){
+  $('recList').innerHTML = S.recurring.map(r => `
+  <div class="rec" data-id="${r.id}">
+    <div class="g2">
+      <label class="f"><span>গন্তব্য</span><input data-k="dest" value="${esc(r.dest)}" placeholder="যেমন: জেলা কৃষি অফিস, চট্টগ্রাম"></label>
+      <label class="f"><span>উদ্দেশ্য</span><input data-k="purpose" value="${esc(r.purpose)}" placeholder="যেমন: মাসিক সমন্বয় সভায় যোগদান"></label>
+    </div>
+    <div class="g4">
+      <label class="f"><span>কবে</span><select data-k="rule"><option value="nth" ${r.rule==='nth'?'selected':''}>মাসের নির্দিষ্ট বার</option><option value="date" ${r.rule==='date'?'selected':''}>মাসের নির্দিষ্ট তারিখ</option></select></label>
+      ${r.rule === 'date'
+        ? `<label class="f"><span>তারিখ</span><input data-k="day" inputmode="numeric" value="${esc(r.day)}"></label><span></span>`
+        : `<label class="f"><span>কততম</span><select data-k="n">${NTH.map(([v,t]) => `<option value="${v}" ${r.n===v?'selected':''}>${t}</option>`).join('')}</select></label>
+           <label class="f"><span>বার</span><select data-k="dow">${DAYS.map((d,i) => `<option value="${i}" ${String(r.dow)===String(i)?'selected':''}>${d}</option>`).join('')}</select></label>`}
+      <label class="f"><span>আসা-যাওয়া (কিমি)</span><input data-k="km" inputmode="decimal" value="${esc(r.km)}"></label>
+    </div>
+    <div class="g4">
+      <label class="f"><span>রওয়ানা</span><input type="time" data-k="dep" value="${r.dep}"></label>
+      <label class="f"><span>পৌঁছানো</span><input type="time" data-k="arr" value="${r.arr}"></label>
+      <label class="f"><span>ফেরা</span><input type="time" data-k="ret" value="${r.ret}"></label>
+      <label class="f"><span>যানবাহন</span><input data-k="vehicle" value="${esc(r.vehicle)}"></label>
+    </div>
+    <button class="btn ghost small danger" data-del="${r.id}">এই নির্দিষ্ট ভ্রমণ মুছুন</button>
+  </div>`).join('');
+}
+$('recList').addEventListener('input', e => {
+  const box = e.target.closest('.rec'); const k = e.target.dataset.k; if(!box || !k) return;
+  const r = S.recurring.find(x => x.id === box.dataset.id); r[k] = e.target.value;
+  if(k === 'rule') renderRecs();
+  saveSettings();
+});
+$('recList').addEventListener('click', e => {
+  const id = e.target.dataset.del; if(!id) return;
+  S.recurring = S.recurring.filter(r => r.id !== id); renderRecs(); saveSettings();
+});
+$('addRec').onclick = () => {
+  S.recurring.push({id:uid(), dest:'', purpose:'মাসিক সমন্বয় সভায় যোগদান', rule:'nth', n:'2', dow:'4', day:'', km:'', dep:'08:30', arr:'10:30', ret:'16:30', vehicle:'মোটর সাইকেল'});
+  renderRecs(); saveSettings();
+};
+function recDate(r, y, m){
+  const last = new Date(y, m, 0).getDate();
+  if(r.rule === 'date'){ const d = parseInt(en(r.day)); return d >= 1 && d <= last ? `${y}-${pad(m)}-${pad(d)}` : null; }
+  const hits = [];
+  for(let d=1; d<=last; d++) if(new Date(y, m-1, d).getDay() === Number(r.dow)) hits.push(d);
+  const d = r.n === 'last' ? hits[hits.length-1] : hits[Number(r.n)-1];
+  return d ? `${y}-${pad(m)}-${pad(d)}` : null;
+}
+
+/* ---------------- মাসের ডাটা ---------------- */
+function emptyMonth(){ return {holidays:'', tours:10, rows:[], locked:false, advance:null, lockedAt:null}; }
+async function loadMonth(ym){
+  await flush();
+  curYM = ym; $('month').value = ym;
+  try{ M = (await Store.getMonth(ym)) || emptyMonth(); }
+  catch(e){ M = emptyMonth(); setSaveState('এই মাসের তথ্য আনা যায়নি, ইন্টারনেট দেখুন'); }
+  renderPlan();
+}
+$('month').onchange = e => { if(e.target.value) loadMonth(e.target.value); };
+$('holidays').oninput = e => { M.holidays = e.target.value; saveMonth(); };
+$('tours').oninput = e => { M.tours = e.target.value; saveMonth(); };
+
+const blockOf = name => S.blocks.find(b => b.name === name);
+function newVisit(block, work){ return {block: block || '', saao:'', project:'', farmers:'', work: work || ''}; }
+function newField(date){
+  return {id:uid(), kind:'field', date, visits:[newVisit()], purpose:'', dest:'', dep:S.dep, arr:S.arr, move:S.move, ret:S.ret, vehicle:S.vehicle, km:'', cancelled:false, reason:'', custom:''};
+}
+function newOther(date, r){
+  return {id:uid(), kind:'other', date, visits:[], dest: r ? r.dest : '', purpose: r ? r.purpose : '',
+    dep: r ? r.dep : S.dep, arr: r ? r.arr : S.arr, move:'', ret: r ? r.ret : S.ret, vehicle: r ? r.vehicle : S.vehicle,
+    km: r ? r.km : '', cancelled:false, reason:'', custom:''};
+}
+function workingDays(ym, holidayStr){
+  const [y,m] = ym.split('-').map(Number);
+  const hol = new Set(en(holidayStr).split(/[,\s]+/).map(Number).filter(Boolean));
+  const out = []; const last = new Date(y, m, 0).getDate();
+  for(let d=1; d<=last; d++){
+    const dow = new Date(y, m-1, d).getDay();
+    if(dow === 5 || dow === 6 || hol.has(d)) continue;
+    out.push(`${y}-${pad(m)}-${pad(d)}`);
+  }
+  return out;
+}
+function generate(){
+  const [y, mo] = curYM.split('-').map(Number);
+  const blocks = S.blocks.filter(b => b.name.trim());
+  if(!blocks.length){ $('genHint').textContent = 'আগে সেটআপে ব্লকের তালিকা দিন।'; return; }
+  const rows = [];
+  const fixed = new Set();
+  S.recurring.forEach(r => { const d = recDate(r, y, mo); if(d && r.dest){ rows.push(newOther(d, r)); fixed.add(d); } });
+  const days = workingDays(curYM, M.holidays).filter(d => !fixed.has(d));
+  const n = Math.min(Math.max(1, parseInt(en(M.tours)) || 1), days.length);
+  const per = Math.max(1, parseInt(S.blocksPerTrip) || 1);
+  const acts = S.activities.length ? S.activities : ['প্রদর্শনী পর্যবেক্ষণ'];
+  let bi = ((y * 12 + mo) * n * per) % blocks.length;
+  for(let i=0; i<n; i++){
+    const r = newField(days[Math.floor(i * days.length / n)]);
+    r.visits = [];
+    for(let j=0; j<per; j++){
+      r.visits.push(newVisit(blocks[bi % blocks.length].name, acts[(i + j*2) % acts.length]));
+      bi++;
+    }
+    rows.push(r);
+  }
+  M.rows = rows.sort((a,b) => a.date.localeCompare(b.date));
+  $('genHint').textContent = `${bn(n)}টি মাঠ ভ্রমণ${fixed.size ? ` ও ${bn(fixed.size)}টি নির্দিষ্ট ভ্রমণ` : ''} বসানো হয়েছে। প্রতিটি খুলে প্রদর্শনীর কৃষক ও কাজ ঠিক করে নিন।`;
+  renderRows(); saveMonth();
+}
+$('gen').onclick = () => {
+  if(M.locked) return alert('অগ্রিম সূচি চূড়ান্ত করা আছে। নতুন সূচি তৈরি করতে আগে "চূড়ান্ত বাতিল" করুন।');
+  if(M.rows.length && !confirm('এই মাসের বর্তমান সূচি মুছে নতুন তৈরি হবে। চালিয়ে যাবেন?')) return;
+  generate();
+};
+function firstDay(){ return `${curYM}-01`; }
+$('addField').onclick = () => { const r = newField(firstDay()); M.rows.push(r); openId = r.id; renderRows(); saveMonth(); };
+$('addOther').onclick = () => { const r = newOther(firstDay()); M.rows.push(r); openId = r.id; renderRows(); saveMonth(); };
+
+/* অগ্রিম সূচি চূড়ান্ত করা */
+function placesOf(r){ return r.kind === 'field' ? r.visits.map(v => v.block).filter(Boolean).join(', ') + (r.visits.some(v=>v.block) ? ' ব্লক' : '') : r.dest; }
+function advPurpose(r){ return r.kind === 'field' ? (r.purpose || S.defaultPurpose) : r.purpose; }
+function snapshot(){ return M.rows.filter(r => !r.cancelled).map(r => ({id:r.id, date:r.date, place:placesOf(r), purpose:advPurpose(r)})); }
+function renderLock(){
+  const b = $('lockBox');
+  if(M.locked){
+    b.innerHTML = `<div><strong>অগ্রিম সূচি চূড়ান্ত</strong><div class="hint" style="margin:2px 0 0">এখন যেকোনো ভ্রমণ বদলালে সংশোধিত সূচিতে নিজে থেকে দেখাবে। ভ্রমণ না হলে "বাতিল" দিন, মুছবেন না।</div></div>
+      <button class="btn small" id="unlock">চূড়ান্ত বাতিল</button>`;
+    $('unlock').onclick = () => { if(confirm('চূড়ান্ত বাতিল করলে সংরক্ষিত অগ্রিম সূচি মুছে যাবে। এর পর আবার চূড়ান্ত করতে হবে। চালিয়ে যাবেন?')){ M.locked = false; M.advance = null; renderPlan(); saveMonth(); } };
+  } else {
+    b.innerHTML = `<div><strong>অগ্রিম সূচি এখনো চূড়ান্ত নয়</strong><div class="hint" style="margin:2px 0 0">জমা দেওয়ার দিন চূড়ান্ত করুন। এরপর সব পরিবর্তন সংশোধিত সূচিতে আলাদা করে দেখাবে।</div></div>
+      <button class="btn leaf small" id="lock" ${M.rows.length ? '' : 'disabled'}>অগ্রিম সূচি চূড়ান্ত করুন</button>`;
+    $('lock').onclick = () => { M.locked = true; M.advance = snapshot(); M.lockedAt = new Date().toISOString(); renderPlan(); saveMonth(); };
+  }
+}
+function statusOf(r){
+  if(!M.locked) return r.cancelled ? 'cancel' : '';
+  const s = (M.advance || []).find(a => a.id === r.id);
+  if(!s) return r.cancelled ? 'cancel' : 'added';
+  if(r.cancelled) return 'cancel';
+  return (s.date !== r.date || s.place !== placesOf(r)) ? 'changed' : '';
+}
+const BADGE = {changed:'<span class="badge ch">পরিবর্তিত</span>', cancel:'<span class="badge cn">বাতিল</span>', added:'<span class="badge ad">অতিরিক্ত</span>'};
+
+/* ---------------- বিবরণ তৈরি ---------------- */
+function autoKm(r){
+  if(r.kind === 'other') return num(r.km);
+  const ks = r.visits.map(v => num((blockOf(v.block) || {}).km));
+  return ks.length ? Math.max(...ks) * 2 : 0;
+}
+const kmOf = r => (r.kind === 'field' && r.km !== '' && r.km != null) ? num(r.km) : autoKm(r);
+function saaoOf(v){ return v.saao || (blockOf(v.block) || {}).saao || ''; }
+function workOf(v){
+  let pre = '';
+  if(v.project) pre = `${v.project} প্রকল্পের আওতায় স্থাপিত প্রদর্শনীর ${v.farmers ? `কৃষক ${v.farmers} এর ` : ''}`;
+  else if(v.farmers) pre = `কৃষক ${v.farmers} এর `;
+  return pre + (v.work || 'মাঠ পরিদর্শন');
+}
+function narrative(r){
+  if(r.custom && r.custom.trim()) return r.custom.trim();
+  const veh = (r.vehicle || '').trim(), km = kmOf(r);
+  const tail = `${veh ? ` ${veh}যোগে ভ্রমণ সম্পন্ন করা হয়েছে।` : ''} আসা-যাওয়ায় ${km ? bn(km) : '....'} কিঃ মিঃ`;
+  if(r.kind === 'other'){
+    return `অদ্য ${tl(r.dep)} ঘটিকার সময় ${S.hq || '....'} হতে ${r.dest || '....'} এর উদ্দেশ্যে রওয়ানা দিয়া ${tl(r.arr)} ঘটিকার সময় সেখানে পৌঁছি। তথায় ${r.purpose || '....'} শেষে ${tl(r.ret)} ঘটিকায় নিজ কর্মস্থলে ফেরৎ আসি।` + tail;
+  }
+  const v = r.visits.filter(x => x.block);
+  if(!v.length) return 'ব্লক বাছাই করুন।';
+  const s0 = saaoOf(v[0]);
+  let t = `অদ্য ${tl(r.dep)} ঘটিকার সময় ${S.hq || '....'} হতে ${v.map(x=>x.block).join(', ')} ব্লকের উদ্দেশ্যে রওয়ানা দিয়া ${tl(r.arr)} ঘটিকার সময় ${v.length > 1 ? 'প্রথমে ' : ''}${v[0].block} ব্লকে পৌঁছি। তথায় ${s0 ? `সংশ্লিষ্ট ব্লকের এসএএও জনাব ${s0} কে সাথে নিয়া ` : ''}${workOf(v[0])}`;
+  for(let i=1; i<v.length; i++){
+    const s = saaoOf(v[i]);
+    t += ` শেষে ${i === 1 ? `${tl(r.move)} ঘটিকার সময় ` : ''}${v[i].block} ব্লকে যাই${s ? ` এবং তথায় উক্ত ব্লকের এসএএও জনাব ${s} কে উপস্থিত পাই। তাঁকে সাথে নিয়া তাঁহার ব্লকের ` : '। তথায় '}${v[i].work ? workOf(v[i]) : 'মাঠ পরিদর্শন'}`;
+  }
+  return t + ` শেষে ${tl(r.ret)} ঘটিকায় নিজ কর্মস্থলে ফেরৎ আসি।` + tail;
+}
+
+/* ---------------- ভ্রমণ কার্ড ---------------- */
+let openId = null;
+function renderPlan(){
+  $('holidays').value = M.holidays || '';
+  $('tours').value = M.tours || '';
+  $('genHint').textContent = M.rows.length ? '' : 'এই মাসের কোনো সূচি নেই। "স্বয়ংক্রিয় সূচি তৈরি করুন" চাপুন।';
+  renderRows();
+}
+function blockOptions(sel){
+  const names = S.blocks.map(b => b.name).filter(Boolean);
+  if(sel && !names.includes(sel)) names.unshift(sel);
+  return `<option value="">ব্লক বাছুন</option>` + names.map(n => `<option ${n===sel?'selected':''}>${esc(n)}</option>`).join('');
+}
+function summaryText(r){ return (r.kind === 'field' ? placesOf(r) : r.dest) || 'স্থান দেওয়া হয়নি'; }
+function cardHtml(r, i){
+  const st = statusOf(r), isF = r.kind === 'field';
+  const inSnap = M.locked && (M.advance || []).some(a => a.id === r.id);
+  return `<details class="trip ${isF ? '' : 'other'} ${r.cancelled ? 'cancel' : ''}" data-id="${r.id}" ${openId === r.id ? 'open' : ''}>
+  <summary><div><div class="d">${bn(i+1)}. ${fmtDate(r.date)}, ${dayName(r.date)}</div><div class="p" data-sum>${esc(summaryText(r))}</div></div><div data-badge>${BADGE[st] || ''}</div></summary>
+  <div class="body">
+    <div class="kind"><button data-kind="field" aria-pressed="${isF}">মাঠ ভ্রমণ</button><button data-kind="other" aria-pressed="${!isF}">সভা / অন্য ভ্রমণ</button></div>
+    <div class="g2">
+      <label class="f"><span>তারিখ</span><input type="date" data-k="date" value="${r.date}"></label>
+      ${isF ? `<label class="f"><span>অগ্রিম সূচির উদ্দেশ্য (খালি রাখলে সাধারণটা)</span><input data-k="purpose" value="${esc(r.purpose)}" placeholder="${esc(S.defaultPurpose)}"></label>`
+            : `<label class="f"><span>গন্তব্য</span><input data-k="dest" value="${esc(r.dest)}" placeholder="যেমন: জেলা কৃষি অফিস, চট্টগ্রাম"></label>`}
+    </div>
+    ${isF ? r.visits.map((v, j) => `
+      <div class="visit">
+        <div class="vh"><span>${bn(j+1)}ম ব্লক</span>${r.visits.length > 1 ? `<button class="btn ghost small danger" data-rmv="${j}">সরান</button>` : ''}</div>
+        <div class="g2">
+          <label class="f"><span>ব্লক</span><select data-k="visits.${j}.block">${blockOptions(v.block)}</select></label>
+          <label class="f"><span>এসএএও</span><input data-k="visits.${j}.saao" value="${esc(v.saao)}" placeholder="${esc((blockOf(v.block)||{}).saao || 'নাম')}"></label>
+          <label class="f"><span>প্রকল্প</span><input data-k="visits.${j}.project" list="dlProjects" value="${esc(v.project)}" placeholder="না থাকলে খালি"></label>
+          <label class="f"><span>প্রদর্শনীর কৃষক</span><input data-k="visits.${j}.farmers" value="${esc(v.farmers)}" placeholder="যেমন: নেপাল বড়ুয়া, মাস্টার দুলাল"></label>
+        </div>
+        <label class="f"><span>কাজ</span><input data-k="visits.${j}.work" list="dlActs" value="${esc(v.work)}"></label>
+      </div>`).join('') + `<button class="btn small" data-addv>আরেকটি ব্লক যোগ</button>`
+    : `<label class="f"><span>উদ্দেশ্য</span><input data-k="purpose" value="${esc(r.purpose)}" placeholder="যেমন: মাসিক সমন্বয় সভায় যোগদান"></label>`}
+    <div class="g4">
+      <label class="f"><span>রওয়ানা</span><input type="time" data-k="dep" value="${r.dep}"></label>
+      <label class="f"><span>পৌঁছানো</span><input type="time" data-k="arr" value="${r.arr}"></label>
+      ${isF && r.visits.length > 1 ? `<label class="f"><span>পরের ব্লকে</span><input type="time" data-k="move" value="${r.move}"></label>` : ''}
+      <label class="f"><span>ফেরা</span><input type="time" data-k="ret" value="${r.ret}"></label>
+    </div>
+    <div class="g2">
+      <label class="f"><span>যানবাহন</span><input data-k="vehicle" value="${esc(r.vehicle)}"></label>
+      <label class="f"><span>আসা-যাওয়া (কিমি)</span><input data-k="km" inputmode="decimal" value="${esc(r.km)}" placeholder="${isF ? 'স্বয়ংক্রিয়: ' + bn(autoKm(r)) : ''}"></label>
+    </div>
+    <label class="f"><span>ভ্রমণ বিবরণীতে যা যাবে</span><div class="preview" data-prev>${esc(narrative(r))}</div></label>
+    <label class="f"><span>নিজে লিখতে চাইলে (খালি রাখলে উপরের লেখাই যাবে)</span><textarea data-k="custom" style="min-height:70px">${esc(r.custom)}</textarea></label>
+    <div class="acts">
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-k="cancelled" ${r.cancelled ? 'checked' : ''}> ভ্রমণ হয়নি (বাতিল)</label>
+      ${inSnap ? '' : `<button class="btn ghost small danger" data-delrow>মুছে ফেলুন</button>`}
+    </div>
+    ${(st && st !== '') ? `<label class="f"><span>পরিবর্তনের কারণ</span><input data-k="reason" list="dlReasons" value="${esc(r.reason)}" placeholder="তালিকা থেকে বাছুন বা লিখুন"></label>` : ''}
+  </div></details>`;
+}
+function renderRows(){
+  M.rows.sort((a,b) => a.date.localeCompare(b.date));
+  $('rows').innerHTML = M.rows.map(cardHtml).join('');
+  renderLock();
+}
+function rowOf(el){ const c = el.closest('.trip'); return c ? [c, M.rows.find(r => r.id === c.dataset.id)] : [null, null]; }
+function setPath(obj, path, val){ const p = path.split('.'); let o = obj; while(p.length > 1) o = o[p.shift()]; o[p[0]] = val; }
+function refreshCard(card, r){
+  card.querySelector('[data-prev]').textContent = narrative(r);
+  card.querySelector('[data-sum]').textContent = summaryText(r);
+  const st = statusOf(r);
+  card.querySelector('[data-badge]').innerHTML = BADGE[st] || '';
+  const hasReason = !!card.querySelector('[data-k="reason"]');
+  if(!!st !== hasReason) rerender(r.id);
+}
+function rerender(id){ openId = id; const y = window.scrollY; renderRows(); window.scrollTo(0, y); }
+$('rows').addEventListener('input', e => {
+  const [card, r] = rowOf(e.target); const k = e.target.dataset.k; if(!r || !k) return;
+  setPath(r, k, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
+  if(k === 'date' || k === 'cancelled' || /\.block$/.test(k)) rerender(r.id); else refreshCard(card, r);
+  saveMonth();
+});
+$('rows').addEventListener('click', e => {
+  const t = e.target; const [, r] = rowOf(t); if(!r) return;
+  if(t.dataset.kind){ if(r.kind !== t.dataset.kind){ r.kind = t.dataset.kind; if(r.kind === 'field' && !r.visits.length) r.visits = [newVisit()]; rerender(r.id); saveMonth(); } }
+  else if(t.hasAttribute('data-addv')){ r.visits.push(newVisit()); rerender(r.id); saveMonth(); }
+  else if(t.dataset.rmv){ r.visits.splice(Number(t.dataset.rmv), 1); rerender(r.id); saveMonth(); }
+  else if(t.hasAttribute('data-delrow')){ if(confirm('এই ভ্রমণটি মুছে ফেলবেন?')){ M.rows = M.rows.filter(x => x.id !== r.id); renderRows(); saveMonth(); } }
+});
+$('rows').addEventListener('toggle', e => { if(e.target.open) openId = e.target.dataset.id; }, true);
+
+/* ---------------- কাগজ ---------------- */
+function ymParts(){ const [y,m] = curYM.split('-').map(Number); return {y, m}; }
+function govHeader(title){
+  const {y,m} = ymParts();
+  return `<div class="gov"><div>গণপ্রজাতন্ত্রী বাংলাদেশ সরকার</div><div class="t2">কৃষি সম্প্রসারণ অধিদপ্তর</div><div>${esc(S.office)}</div></div>
+  <h3>${title}</h3>
+  <div class="meta"><span>মাস: ${MONTHS[m-1]}, ${bn(y)}</span><span>নাম: ${esc(S.name) || '..........'}</span><span>পদবি: ${esc(S.designation) || '..........'}</span></div>`;
+}
+function signBlock(){
+  return `<div class="sign"><div>দাখিলকারীর স্বাক্ষর ও তারিখ<br>${esc(S.name)}<br>${esc(S.designation)}</div><div>অনুমোদনকারীর স্বাক্ষর ও তারিখ<br>${esc(S.supervisor)}</div></div>`;
+}
+function docAdvance(){
+  const list = M.locked ? M.advance : snapshot();
+  return govHeader('অগ্রিম ভ্রমণসূচি') + `<table><thead><tr><th>ক্রমিক</th><th>তারিখ</th><th>বার</th><th>ভ্রমণের স্থান</th><th>ভ্রমণের উদ্দেশ্য</th><th>মন্তব্য</th></tr></thead><tbody>
+  ${[...list].sort((a,b)=>a.date.localeCompare(b.date)).map((a,i) => `<tr><td class="c">${bn(i+1)}</td><td class="c">${fmtDate(a.date)}</td><td class="c">${dayName(a.date)}</td><td>${esc(a.place)}</td><td>${esc(a.purpose)}</td><td></td></tr>`).join('')}
+  </tbody></table>` + signBlock();
+}
+function docRevised(){
+  const snap = M.advance || [];
+  const items = [];
+  snap.forEach(s => {
+    const r = M.rows.find(x => x.id === s.id);
+    if(!r || r.cancelled) items.push({sort:s.date, old:s, now:null, reason: r ? r.reason : ''});
+    else items.push({sort:r.date, old:s, now:r, reason:r.reason, same: s.date === r.date && s.place === placesOf(r)});
+  });
+  M.rows.filter(r => !r.cancelled && !snap.some(s => s.id === r.id)).forEach(r => items.push({sort:r.date, old:null, now:r, reason:r.reason}));
+  items.sort((a,b) => a.sort.localeCompare(b.sort));
+  return govHeader('সংশোধিত ভ্রমণসূচি') + `<table><thead>
+  <tr><th rowspan="2">ক্রমিক</th><th colspan="2">অগ্রিম ভ্রমণসূচি অনুযায়ী</th><th colspan="3">সংশোধিত ভ্রমণসূচি</th><th rowspan="2">পরিবর্তনের কারণ</th></tr>
+  <tr><th>তারিখ</th><th>স্থান</th><th>তারিখ</th><th>স্থান</th><th>উদ্দেশ্য</th></tr></thead><tbody>
+  ${items.map((it,i) => `<tr><td class="c">${bn(i+1)}</td>
+    ${it.old ? `<td class="c">${fmtDate(it.old.date)}</td><td>${esc(it.old.place)}</td>` : `<td class="c" colspan="2">অগ্রিম সূচিতে ছিল না</td>`}
+    ${it.now ? `<td class="c">${fmtDate(it.now.date)}</td><td>${esc(placesOf(it.now))}</td><td>${esc(advPurpose(it.now))}</td>` : `<td class="c" colspan="3">ভ্রমণ বাতিল</td>`}
+    <td>${it.same ? 'অপরিবর্তিত' : esc(it.reason)}</td></tr>`).join('')}
+  </tbody></table>` + signBlock();
+}
+function docDiary(){
+  const {y,m} = ymParts();
+  const list = M.rows.filter(r => !r.cancelled).sort((a,b) => a.date.localeCompare(b.date));
+  let total = 0; list.forEach(r => total += kmOf(r));
+  if(S.diaryLayout === 'narrative'){
+    return `<h3>${esc(S.name)}, ${esc(S.designation)} এর ${MONTHS[m-1]}/${bn(String(y).slice(2))} ইং মাসের ভ্রমণ বিবরণীঃ</h3>
+    <table><thead><tr><th style="width:95px">তারিখ</th><th>ভ্রমণের বিবরণ</th></tr></thead><tbody>
+    ${list.map(r => `<tr><td class="c">${fmtDate(r.date)}</td><td class="j">${esc(narrative(r))}</td></tr>`).join('')}
+    <tr><td class="r"><b>মোট</b></td><td><b>আসা-যাওয়ায় ${bn(total)} কিঃ মিঃ</b></td></tr></tbody></table>` + signBlock();
+  }
+  return govHeader('ভ্রমণ বিবরণী') + `<table><thead><tr><th>ক্রমিক</th><th>তারিখ ও বার</th><th>যাত্রা (স্থান ও সময়)</th><th>গন্তব্য</th><th>প্রত্যাবর্তন (স্থান ও সময়)</th><th>দূরত্ব, আসা-যাওয়া (কিমি)</th><th style="width:42%">সম্পাদিত কাজের বিবরণ</th></tr></thead><tbody>
+  ${list.map((r,i) => `<tr><td class="c">${bn(i+1)}</td><td class="c">${fmtDate(r.date)}<br>${dayName(r.date)}</td>
+    <td>${esc(S.hq)}<br>${tl(r.dep)}</td><td>${esc(r.kind === 'field' ? placesOf(r) : r.dest)}</td><td>${esc(S.hq)}<br>${tl(r.ret)}</td>
+    <td class="r">${kmOf(r) ? bn(kmOf(r)) : ''}</td><td class="j">${esc(narrative(r))}</td></tr>`).join('')}
+  <tr><td colspan="5" class="r"><b>মোট</b></td><td class="r"><b>${bn(total)}</b></td><td></td></tr></tbody></table>
+  <p class="cert">প্রত্যয়ন করা যাচ্ছে যে, উপরোক্ত ভ্রমণসমূহ সরকারি কাজে সম্পাদিত হয়েছে।</p>` + signBlock();
+}
+function docHtml(){ return curDoc === 'advance' ? docAdvance() : curDoc === 'revised' ? docRevised() : docDiary(); }
+function renderDoc(){
+  const w = [];
+  if(!M.rows.length) w.push('এই মাসের কোনো ভ্রমণ নেই। "মাসের ভ্রমণ" থেকে সূচি তৈরি করুন।');
+  if(!S.name || !S.hq) w.push('সেটআপে নাম, পদবি ও রওয়ানার স্থান দিন।');
+  if(curDoc === 'revised' && !M.locked) w.push('সংশোধিত সূচির জন্য আগে অগ্রিম সূচি চূড়ান্ত করতে হবে।');
+  if(curDoc === 'advance' && !M.locked && M.rows.length) w.push('অগ্রিম সূচি এখনো চূড়ান্ত নয়। জমা দেওয়ার পর "মাসের ভ্রমণ" থেকে চূড়ান্ত করুন।');
+  if(curDoc === 'diary'){
+    const noKm = M.rows.filter(r => !r.cancelled && !kmOf(r)).length;
+    if(noKm) w.push(`${bn(noKm)}টি ভ্রমণের দূরত্ব নেই। সেটআপে ব্লকের দূরত্ব দিন বা ভ্রমণে কিমি লিখুন।`);
+  }
+  $('docWarn').innerHTML = w.map(x => `<div class="warn">${x}</div>`).join('');
+  $('sheet').innerHTML = (curDoc === 'revised' && !M.locked) ? '' : docHtml();
+}
+$('docSeg').onclick = e => {
+  const d = e.target.dataset.doc; if(!d) return; curDoc = d;
+  document.querySelectorAll('#docSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.doc === d));
+  renderDoc();
+};
+const DOC_CSS = `body{margin:0;font-family:"Nikosh","SolaimanLipi","Tiro Bangla",serif;font-size:13pt;line-height:1.5;color:#000}
+.gov{text-align:center}.gov .t2{font-size:15pt;font-weight:bold}
+h3{text-align:center;font-size:15pt;margin:10pt 0 6pt;text-decoration:underline}
+.meta{display:flex;justify-content:space-between;margin:6pt 0}.meta span{margin-right:30pt}
+table{width:100%;border-collapse:collapse;margin-top:6pt}th,td{border:1px solid #000;padding:3pt 5pt;vertical-align:top;text-align:left}
+th{text-align:center}td.c{text-align:center}td.r{text-align:right}td.j{text-align:justify}.cert{margin-top:12pt}
+.sign{display:flex;justify-content:space-between;margin-top:40pt}.sign div{text-align:center;min-width:200pt;border-top:1px dotted #000;padding-top:3pt}`;
+const TITLES = {advance:'অগ্রিম ভ্রমণসূচি', revised:'সংশোধিত ভ্রমণসূচি', diary:'ভ্রমণ বিবরণী'};
+function canExport(){ if(curDoc === 'revised' && !M.locked){ alert('আগে অগ্রিম সূচি চূড়ান্ত করুন।'); return false; } return true; }
+$('dlWord').onclick = () => {
+  if(!canExport()) return;
+  // Word এই HTML ফাইলটি সরাসরি খোলে ও এডিট করা যায়; আড়াআড়ি A4 পাতা
+  const signTable = docHtml().replace(/<div class="sign"><div>(.*?)<\/div><div>(.*?)<\/div><\/div>/,
+    '<table style="margin-top:40pt;border:none"><tr><td style="border:none;text-align:center">$1</td><td style="border:none;text-align:center">$2</td></tr></table>');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${TITLES[curDoc]}</title><style>${DOC_CSS}
+@page Section1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:36pt 36pt 36pt 36pt}div.Section1{page:Section1}</style></head>
+<body><div class="Section1">${signTable}</div></body></html>`;
+  const blob = new Blob(['\ufeff', html], {type:'application/msword'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `${TITLES[curDoc]}-${curYM}.doc`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('print').onclick = () => {
+  if(!canExport()) return;
+  const w = window.open('', '_blank');
+  if(!w) return alert('পপ-আপ বন্ধ আছে। ব্রাউজারে এই সাইটের জন্য পপ-আপ চালু করুন।');
+  w.document.write(`<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><title>${TITLES[curDoc]} ${curYM}</title>
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla&display=swap" rel="stylesheet"><style>${DOC_CSS}@page{size:A4 landscape;margin:12mm}</style></head>
+<body>${docHtml()}<script>document.fonts.ready.then(()=>setTimeout(()=>print(),300))<\/script></body></html>`);
+  w.document.close();
+};
+
+/* ---------------- পুরোনো মাস ---------------- */
+async function renderArchive(){
+  $('monthList').innerHTML = '<p class="hint">লোড হচ্ছে…</p>';
+  try{
+    const list = await Store.listMonths();
+    $('monthList').innerHTML = list.length ? list.map(x => { const [y,m] = x.ym.split('-').map(Number);
+      return `<a data-ym="${x.ym}"><span>${MONTHS[m-1]} ${bn(y)}</span><span class="status">${x.updated_at ? 'সর্বশেষ বদল: ' + fmtDate(x.updated_at.slice(0,10)) : ''}</span></a>`; }).join('')
+      : '<p class="hint">এখনো কোনো মাস সংরক্ষিত হয়নি।</p>';
+  }catch(e){ $('monthList').innerHTML = '<p class="hint">তালিকা আনা যায়নি। ইন্টারনেট সংযোগ দেখুন।</p>'; }
+}
+$('monthList').onclick = async e => { const a = e.target.closest('a[data-ym]'); if(!a) return; await loadMonth(a.dataset.ym); openTab('plan'); };
+
+/* ---------------- শুরু ---------------- */
+let started = false;
+async function startApp(user){
+  if(started) return; started = true;
+  USER = user;
+  $('authView').hidden = true; $('appView').hidden = false;
+  $('demoBanner').hidden = CLOUD; $('logout').hidden = !CLOUD;
+  try{
+    const p = await Store.getProfile();
+    S = Object.assign(clone(DEFAULT_SETTINGS), p || {});
+    if(!p && user && user.user_metadata && user.user_metadata.name){ S.name = user.user_metadata.name; saveSettings(); }
+  }catch(e){ setSaveState('সেটআপ আনা যায়নি, ইন্টারনেট দেখুন'); }
+  $('whoName').textContent = S.name || (user && user.email) || '';
+  renderSetup();
+  const now = new Date();
+  await loadMonth(`${now.getFullYear()}-${pad(now.getMonth()+1)}`);
+  if(!S.blocks.length) openTab('setup');
+}
+async function boot(){
+  if(!CLOUD){ startApp(null); return; }
+  sb.auth.onAuthStateChange(async (ev, session) => {
+    if(ev === 'PASSWORD_RECOVERY'){
+      const p = prompt('নতুন পাসওয়ার্ড দিন (কমপক্ষে ৬ অক্ষর)');
+      if(p){ const {error} = await sb.auth.updateUser({password:p}); alert(error ? authErr(error) : 'পাসওয়ার্ড বদলানো হয়েছে।'); }
+    }
+    if(session && session.user) startApp(session.user);
+  });
+  const {data} = await sb.auth.getSession();
+  if(data.session) startApp(data.session.user);
+  else { $('authView').hidden = false; setMode(false); }
+}
+boot();
+})();
+</script>
+</body>
+</html>
