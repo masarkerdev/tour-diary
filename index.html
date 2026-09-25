@@ -1,159 +1,310 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="bn">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ভ্রমণসূচি ও ভ্রমণ বিবরণী</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Tiro+Bangla&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-<!-- ============ লগইন ============ -->
-<div class="wrap auth" id="authView" hidden>
-  <h1>ভ্রমণসূচি ও ভ্রমণ বিবরণী</h1>
-  <p class="hint">অগ্রিম ভ্রমণসূচি, সংশোধিত ভ্রমণসূচি ও ভ্রমণ বিবরণী এক জায়গা থেকে। কৃষি সম্প্রসারণ অধিদপ্তরের কর্মকর্তাদের জন্য।</p>
-  <div class="seg">
-    <button class="btn leaf" id="tabLogin" aria-pressed="true">লগইন</button>
-    <button class="btn" id="tabSignup" aria-pressed="false">নতুন অ্যাকাউন্ট</button>
-  </div>
-  <div class="box">
-    <label class="f" id="nameWrap" hidden><span>আপনার নাম</span><input id="aName" autocomplete="name"></label>
-    <label class="f"><span>ইমেইল</span><input id="aEmail" type="email" autocomplete="email"></label>
-    <label class="f"><span>পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)</span><input id="aPass" type="password" autocomplete="current-password"></label>
-    <div class="acts">
-      <button class="btn primary" id="aSubmit">লগইন করুন</button>
-      <button class="btn ghost small" id="aForgot">পাসওয়ার্ড ভুলে গেছেন?</button>
-    </div>
-    <div class="msg" id="aMsg"></div>
-  </div>
-</div>
-
-<!-- ============ মূল অ্যাপ ============ -->
-<div class="wrap" id="appView" hidden>
-  <header class="top">
-    <h1>ভ্রমণসূচি ও ভ্রমণ বিবরণী</h1>
-    <div class="who"><div id="whoName"></div><div class="status" id="saveState"></div><button class="btn small" id="logout">লগআউট</button></div>
-  </header>
-  <div class="banner" id="demoBanner" hidden>ডেমো মোড: তথ্য শুধু এই ব্রাউজারে থাকছে। সবার জন্য অ্যাকাউন্ট চালু করতে README দেখুন।</div>
-
-  <nav class="tabs" role="tablist">
-    <button data-tab="plan" aria-selected="true">মাসের ভ্রমণ</button>
-    <button data-tab="docs" aria-selected="false">কাগজ</button>
-    <button data-tab="archive" aria-selected="false">পুরোনো মাস</button>
-    <button data-tab="setup" aria-selected="false">সেটআপ</button>
-  </nav>
-
-  <!-- মাসের ভ্রমণ -->
-  <section class="panel on" id="p-plan">
-    <div class="box">
-      <div class="g2">
-        <label class="f"><span>মাস</span><input type="month" id="month"></label>
-        <label class="f"><span>মাঠ ভ্রমণের সংখ্যা</span><input type="number" id="tours" min="1" max="26"></label>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>ভ্রমণসূচি ও ভ্রমণ বিবরণী</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Tiro+Bangla&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ============ লগইন ============ -->
+    <div class="wrap auth" id="authView" hidden>
+      <h1>ভ্রমণসূচি ও ভ্রমণ বিবরণী</h1>
+      <p class="hint">
+        অগ্রিম ভ্রমণসূচি, সংশোধিত ভ্রমণসূচি ও ভ্রমণ বিবরণী এক জায়গা থেকে। কৃষি
+        সম্প্রসারণ অধিদপ্তরের কর্মকর্তাদের জন্য।
+      </p>
+      <div class="seg">
+        <button class="btn leaf" id="tabLogin" aria-pressed="true">লগইন</button>
+        <button class="btn" id="tabSignup" aria-pressed="false">
+          নতুন অ্যাকাউন্ট
+        </button>
       </div>
-      <label class="f"><span>সরকারি ছুটির তারিখ (শুক্র-শনি ছাড়া), কমা দিয়ে</span><input id="holidays" placeholder="যেমন: ১৬, ২৬"></label>
-      <div class="acts">
-        <button class="btn primary" id="gen">স্বয়ংক্রিয় সূচি তৈরি করুন</button>
-        <button class="btn" id="addField">মাঠ ভ্রমণ যোগ</button>
-        <button class="btn" id="addOther">অন্য ভ্রমণ যোগ</button>
-      </div>
-      <p class="hint" id="genHint"></p>
-    </div>
-    <div class="box lockbar" id="lockBox"></div>
-    <div id="rows"></div>
-  </section>
-
-  <!-- কাগজ -->
-  <section class="panel" id="p-docs">
-    <div class="box">
-      <div class="seg2" id="docSeg">
-        <button data-doc="advance" aria-pressed="true">অগ্রিম ভ্রমণসূচি</button>
-        <button data-doc="revised" aria-pressed="false">সংশোধিত ভ্রমণসূচি</button>
-        <button data-doc="diary" aria-pressed="false">ভ্রমণ বিবরণী</button>
-      </div>
-      <div id="docWarn"></div>
-      <div class="acts">
-        <button class="btn leaf" id="dlWord">Word ফাইল নামান</button>
-        <button class="btn" id="print">প্রিন্ট / PDF</button>
+      <div class="box">
+        <label class="f" id="nameWrap" hidden
+          ><span>আপনার নাম</span><input id="aName" autocomplete="name"
+        /></label>
+        <label class="f"
+          ><span>ইমেইল</span
+          ><input id="aEmail" type="email" autocomplete="email"
+        /></label>
+        <label class="f"
+          ><span>পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)</span
+          ><input id="aPass" type="password" autocomplete="current-password"
+        /></label>
+        <div class="acts">
+          <button class="btn primary" id="aSubmit">লগইন করুন</button>
+          <button class="btn ghost small" id="aForgot">
+            পাসওয়ার্ড ভুলে গেছেন?
+          </button>
+        </div>
+        <div class="msg" id="aMsg"></div>
       </div>
     </div>
-    <div class="sheet-wrap"><div class="sheet" id="sheet"></div></div>
-  </section>
 
-  <!-- পুরোনো মাস -->
-  <section class="panel" id="p-archive">
-    <div class="box">
-      <h2>সংরক্ষিত মাসগুলো</h2>
-      <p class="hint">যেকোনো মাসে চাপ দিলে সেই মাসের ভ্রমণ ও কাগজ খুলবে।</p>
-      <div class="months" id="monthList"></div>
-    </div>
-  </section>
-
-  <!-- সেটআপ -->
-  <section class="panel" id="p-setup">
-    <div class="box" id="upBox" hidden></div>
-    <div class="box">
-      <h2>আপনার তথ্য</h2>
-      <div class="g2">
-        <label class="f"><span>নাম</span><input data-s="name" placeholder="যেমন: মোঃ মাসুম কবির"></label>
-        <label class="f"><span>পদবি ও কর্মস্থল</span><input data-s="designation" placeholder="যেমন: উপজেলা কৃষি অফিসার, রাউজান, চট্টগ্রাম"></label>
-        <label class="f"><span>দপ্তর (কাগজের শিরোনামে)</span><input data-s="office" placeholder="যেমন: উপজেলা কৃষি অফিস, রাউজান, চট্টগ্রাম"></label>
-        <label class="f"><span>যেখান থেকে রওয়ানা দেন</span><input data-s="hq" placeholder="যেমন: উপজেলা কৃষি অফিস,রাউজান,চট্টগ্রাম"></label>
-        <label class="f"><span>অনুমোদনকারী কর্মকর্তা</span><input data-s="supervisor" placeholder="যেমন: উপপরিচালক, ডিএই, চট্টগ্রাম"></label>
-        <label class="f"><span>সাধারণ যানবাহন</span><input data-s="vehicle" placeholder="অফিসিয়াল গাড়ি"></label>
+    <!-- ============ মূল অ্যাপ ============ -->
+    <div class="wrap" id="appView" hidden>
+      <header class="top">
+        <h1>ভ্রমণসূচি ও ভ্রমণ বিবরণী</h1>
+        <div class="who">
+          <div id="whoName"></div>
+          <div class="status" id="saveState"></div>
+          <button class="btn small" id="logout">লগআউট</button>
+        </div>
+      </header>
+      <div class="banner" id="demoBanner" hidden>
+        ডেমো মোড: তথ্য শুধু এই ব্রাউজারে থাকছে। সবার জন্য অ্যাকাউন্ট চালু করতে
+        README দেখুন।
       </div>
-      <div class="g4">
-        <label class="f"><span>রওয়ানা</span><input type="time" data-s="dep"></label>
-        <label class="f"><span>প্রথম ব্লকে পৌঁছানো</span><input type="time" data-s="arr"></label>
-        <label class="f"><span>পরের ব্লকে যাওয়া</span><input type="time" data-s="move"></label>
-        <label class="f"><span>কর্মস্থলে ফেরা</span><input type="time" data-s="ret"></label>
-      </div>
-      <div class="g2">
-        <label class="f"><span>প্রতি মাঠ ভ্রমণে ব্লক</span><select data-s="blocksPerTrip"><option value="1">১টি</option><option value="2">২টি</option><option value="3">৩টি</option></select></label>
-        <label class="f"><span>ভ্রমণ বিবরণীর ছক</span><select data-s="diaryLayout"><option value="columns">কলামসহ (ক্রমিক, সময়, দূরত্ব, বিবরণ)</option><option value="narrative">শুধু তারিখ ও বিবরণ</option></select></label>
-      </div>
-      <label class="f"><span>ভ্রমণ বিবরণীর যাত্রা, গন্তব্য ও প্রত্যাবর্তন কলামে সংক্ষিপ্ত রূপ (প্রতি লাইনে: পূর্ণ রূপ = সংক্ষিপ্ত রূপ)</span><textarea data-s="abbrText" style="min-height:70px"></textarea></label>
-      <label class="f"><span>অগ্রিম সূচির উদ্দেশ্যের তালিকা (প্রতি লাইনে একটি; প্রথম তিনটি স্বয়ংক্রিয় সূচিতে বসবে)</span><textarea id="purposeList" style="min-height:120px"></textarea></label>
+
+      <nav class="tabs" role="tablist">
+        <button data-tab="plan" aria-selected="true">মাসের ভ্রমণ</button>
+        <button data-tab="docs" aria-selected="false">ডকুমেন্টস ডাউনলোড</button>
+        <button data-tab="archive" aria-selected="false">পুরোনো মাস</button>
+        <button data-tab="setup" aria-selected="false">সেটআপ</button>
+      </nav>
+
+      <!-- মাসের ভ্রমণ -->
+      <section class="panel on" id="p-plan">
+        <div class="box">
+          <div class="g2">
+            <label class="f"
+              ><span>মাস</span><input type="month" id="month"
+            /></label>
+            <label class="f"
+              ><span>মাঠ ভ্রমণের সংখ্যা</span
+              ><input type="number" id="tours" min="1" max="26"
+            /></label>
+          </div>
+          <label class="f"
+            ><span>সরকারি ছুটির তারিখ (শুক্র-শনি ছাড়া), কমা দিয়ে</span
+            ><input id="holidays" placeholder="যেমন: ১৬, ২৬"
+          /></label>
+          <div class="acts">
+            <button class="btn primary" id="gen">
+              স্বয়ংক্রিয় সূচি তৈরি করুন
+            </button>
+            <button class="btn" id="addField">মাঠ ভ্রমণ যোগ</button>
+            <button class="btn" id="addOther">অন্য ভ্রমণ যোগ</button>
+          </div>
+          <p class="hint" id="genHint"></p>
+        </div>
+        <div class="box lockbar" id="lockBox"></div>
+        <div id="rows"></div>
+      </section>
+
+      <!-- কাগজ -->
+      <section class="panel" id="p-docs">
+        <div class="box">
+          <div class="seg2" id="docSeg">
+            <button data-doc="advance" aria-pressed="true">
+              অগ্রিম ভ্রমণসূচি
+            </button>
+            <button data-doc="revised" aria-pressed="false">
+              সংশোধিত ভ্রমণসূচি
+            </button>
+            <button data-doc="diary" aria-pressed="false">ভ্রমণ বিবরণী</button>
+          </div>
+          <div id="docWarn"></div>
+          <div class="acts">
+            <button class="btn leaf" id="dlWord">Word ফাইল নামান</button>
+            <button class="btn" id="print">প্রিন্ট / PDF</button>
+          </div>
+        </div>
+        <div class="sheet-wrap"><div class="sheet" id="sheet"></div></div>
+      </section>
+
+      <!-- পুরোনো মাস -->
+      <section class="panel" id="p-archive">
+        <div class="box">
+          <h2>সংরক্ষিত মাসগুলো</h2>
+          <p class="hint">যেকোনো মাসে চাপ দিলে সেই মাসের ভ্রমণ ও কাগজ খুলবে।</p>
+          <div class="months" id="monthList"></div>
+        </div>
+      </section>
+
+      <!-- সেটআপ -->
+      <section class="panel" id="p-setup">
+        <div class="box" id="upBox" hidden></div>
+        <div class="box">
+          <h2>আপনার তথ্য</h2>
+          <div class="g2">
+            <label class="f"
+              ><span>নাম</span
+              ><input data-s="name" placeholder="যেমন: মোঃ মাসুম কবির"
+            /></label>
+            <label class="f"
+              ><span>পদবি ও কর্মস্থল</span
+              ><input
+                data-s="designation"
+                placeholder="যেমন: উপজেলা কৃষি অফিসার, রাউজান, চট্টগ্রাম"
+            /></label>
+            <label class="f"
+              ><span>দপ্তর (কাগজের শিরোনামে)</span
+              ><input
+                data-s="office"
+                placeholder="যেমন: উপজেলা কৃষি অফিস, রাউজান, চট্টগ্রাম"
+            /></label>
+            <label class="f"
+              ><span>যেখান থেকে রওয়ানা দেন</span
+              ><input
+                data-s="hq"
+                placeholder="যেমন: উপজেলা কৃষি অফিস,রাউজান,চট্টগ্রাম"
+            /></label>
+            <label class="f"
+              ><span>অনুমোদনকারী কর্মকর্তা</span
+              ><input
+                data-s="supervisor"
+                placeholder="যেমন: উপপরিচালক, ডিএই, চট্টগ্রাম"
+            /></label>
+            <label class="f"
+              ><span>সাধারণ যানবাহন</span
+              ><input data-s="vehicle" placeholder="অফিসিয়াল গাড়ি"
+            /></label>
+          </div>
+          <div class="g4">
+            <label class="f"
+              ><span>রওয়ানা</span><input type="time" data-s="dep"
+            /></label>
+            <label class="f"
+              ><span>প্রথম ব্লকে পৌঁছানো</span><input type="time" data-s="arr"
+            /></label>
+            <label class="f"
+              ><span>পরের ব্লকে যাওয়া</span><input type="time" data-s="move"
+            /></label>
+            <label class="f"
+              ><span>কর্মস্থলে ফেরা</span><input type="time" data-s="ret"
+            /></label>
+          </div>
+          <div class="g2">
+            <label class="f"
+              ><span>প্রতি মাঠ ভ্রমণে ব্লক</span
+              ><select data-s="blocksPerTrip">
+                <option value="1">১টি</option>
+                <option value="2">২টি</option>
+                <option value="3">৩টি</option>
+              </select></label
+            >
+            <label class="f"
+              ><span>ভ্রমণ বিবরণীর ছক</span
+              ><select data-s="diaryLayout">
+                <option value="columns">
+                  কলামসহ (ক্রমিক, সময়, দূরত্ব, বিবরণ)
+                </option>
+                <option value="narrative">শুধু তারিখ ও বিবরণ</option>
+              </select></label
+            >
+          </div>
+          <label class="f"
+            ><span
+              >ভ্রমণ বিবরণীর যাত্রা, গন্তব্য ও প্রত্যাবর্তন কলামে সংক্ষিপ্ত রূপ
+              (প্রতি লাইনে: পূর্ণ রূপ = সংক্ষিপ্ত রূপ)</span
+            ><textarea data-s="abbrText" style="min-height: 70px"></textarea>
+          </label>
+          <label class="f"
+            ><span
+              >অগ্রিম সূচির উদ্দেশ্যের তালিকা (প্রতি লাইনে একটি; প্রথম তিনটি
+              স্বয়ংক্রিয় সূচিতে বসবে)</span
+            ><textarea id="purposeList" style="min-height: 120px"></textarea>
+          </label>
+        </div>
+
+        <div class="box">
+          <h2>ব্লক ও এসএএও</h2>
+          <div class="locknote" data-locknote hidden>
+            উপজেলার যৌথ তালিকা। শুধু উপজেলার অ্যাডমিন বদলাতে পারেন।
+          </div>
+          <p class="hint">
+            কর্মস্থল থেকে একমুখী দূরত্ব দিন। মাঠ ভ্রমণে সবচেয়ে দূরের ব্লকের
+            দূরত্বের দ্বিগুণ আসা-যাওয়া হিসেবে বসবে, চাইলে প্রতিটি ভ্রমণে বদলানো
+            যাবে। কাছাকাছি ব্লকগুলো পরপর রাখুন, স্বয়ংক্রিয় সূচিতে পাশাপাশি
+            ব্লক একদিনে পড়বে।
+          </p>
+          <div class="scroll">
+            <table class="grid">
+              <thead>
+                <tr>
+                  <th>ব্লক</th>
+                  <th>ইউনিয়ন</th>
+                  <th>এসএএও-এর নাম</th>
+                  <th style="width: 90px">দূরত্ব (কিমি)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="blocksBody"></tbody>
+            </table>
+          </div>
+          <label class="f"
+            ><span
+              >একসাথে অনেক ব্লক যোগ: প্রতি লাইনে "ব্লক, ইউনিয়ন, এসএএও,
+              কিমি"</span
+            ><textarea
+              id="bulk"
+              style="min-height: 80px"
+              placeholder="গহিরা, গহিরা, রোহেল মুন্না, ১৫&#10;নোয়াজিশপুর, নোয়াজিশপুর, শহীদুল ইসলাম, ১২"
+            ></textarea>
+          </label>
+          <div class="acts">
+            <button class="btn small leaf" id="bulkAdd">তালিকা যোগ করুন</button
+            ><button class="btn small" id="addBlock">একটি ব্লক যোগ</button>
+          </div>
+        </div>
+
+        <div class="box">
+          <h2>প্রতি মাসের নির্দিষ্ট ভ্রমণ</h2>
+          <div class="locknote" data-locknote hidden>
+            উপজেলার যৌথ তালিকা। শুধু উপজেলার অ্যাডমিন বদলাতে পারেন।
+          </div>
+          <p class="hint">
+            যেমন জেলার মাসিক সমন্বয় সভা। স্বয়ংক্রিয় সূচি তৈরির সময় এগুলো
+            নিজে বসে যাবে, আর সেদিন কোনো মাঠ ভ্রমণ পড়বে না।
+          </p>
+          <div id="recList"></div>
+          <div class="acts">
+            <button class="btn small" id="addRec">নির্দিষ্ট ভ্রমণ যোগ</button>
+          </div>
+        </div>
+
+        <div class="box">
+          <h2>কাজের তৈরি বাক্যাংশ</h2>
+          <div class="locknote" data-locknote hidden>
+            উপজেলার যৌথ তালিকা। শুধু উপজেলার অ্যাডমিন বদলাতে পারেন।
+          </div>
+          <p class="hint">
+            প্রতি লাইনে একটি। ব্লকের কাজ লেখার সময় এগুলো থেকে বেছে নেওয়া যাবে।
+            বাক্যাংশ এমনভাবে লিখুন যেন পরে "শেষে" বসলে বাক্য ঠিক থাকে।
+          </p>
+          <textarea id="acts"></textarea>
+          <label class="f"
+            ><span>প্রকল্পের নাম (প্রতি লাইনে একটি)</span
+            ><textarea id="projects" style="min-height: 70px"></textarea>
+          </label>
+        </div>
+      </section>
     </div>
 
-    <div class="box">
-      <h2>ব্লক ও এসএএও</h2>
-      <div class="locknote" data-locknote hidden>উপজেলার যৌথ তালিকা। শুধু উপজেলার অ্যাডমিন বদলাতে পারেন।</div>
-      <p class="hint">কর্মস্থল থেকে একমুখী দূরত্ব দিন। মাঠ ভ্রমণে সবচেয়ে দূরের ব্লকের দূরত্বের দ্বিগুণ আসা-যাওয়া হিসেবে বসবে, চাইলে প্রতিটি ভ্রমণে বদলানো যাবে। কাছাকাছি ব্লকগুলো পরপর রাখুন, স্বয়ংক্রিয় সূচিতে পাশাপাশি ব্লক একদিনে পড়বে।</p>
-      <div class="scroll"><table class="grid"><thead><tr><th>ব্লক</th><th>ইউনিয়ন</th><th>এসএএও-এর নাম</th><th style="width:90px">দূরত্ব (কিমি)</th><th></th></tr></thead><tbody id="blocksBody"></tbody></table></div>
-      <label class="f"><span>একসাথে অনেক ব্লক যোগ: প্রতি লাইনে "ব্লক, ইউনিয়ন, এসএএও, কিমি"</span><textarea id="bulk" style="min-height:80px" placeholder="গহিরা, গহিরা, রোহেল মুন্না, ১৫&#10;নোয়াজিশপুর, নোয়াজিশপুর, শহীদুল ইসলাম, ১২"></textarea></label>
-      <div class="acts"><button class="btn small leaf" id="bulkAdd">তালিকা যোগ করুন</button><button class="btn small" id="addBlock">একটি ব্লক যোগ</button></div>
-    </div>
+    <datalist id="dlReasons">
+      <option value="জরুরি সভা থাকায়"></option>
+      <option value="ঊর্ধ্বতন কর্তৃপক্ষের নির্দেশে"></option>
+      <option value="প্রতিকূল আবহাওয়ার কারণে"></option>
+      <option value="সরকারি ছুটি ঘোষণা হওয়ায়"></option>
+      <option value="অফিসিয়াল কাজে ব্যস্ত থাকায়"></option>
+      <option value="জরুরি মাঠ পরিস্থিতির কারণে"></option>
+    </datalist>
+    <datalist id="dlActs"></datalist>
+    <datalist id="dlProjects"></datalist>
 
-    <div class="box">
-      <h2>প্রতি মাসের নির্দিষ্ট ভ্রমণ</h2>
-      <div class="locknote" data-locknote hidden>উপজেলার যৌথ তালিকা। শুধু উপজেলার অ্যাডমিন বদলাতে পারেন।</div>
-      <p class="hint">যেমন জেলার মাসিক সমন্বয় সভা। স্বয়ংক্রিয় সূচি তৈরির সময় এগুলো নিজে বসে যাবে, আর সেদিন কোনো মাঠ ভ্রমণ পড়বে না।</p>
-      <div id="recList"></div>
-      <div class="acts"><button class="btn small" id="addRec">নির্দিষ্ট ভ্রমণ যোগ</button></div>
-    </div>
-
-    <div class="box">
-      <h2>কাজের তৈরি বাক্যাংশ</h2>
-      <div class="locknote" data-locknote hidden>উপজেলার যৌথ তালিকা। শুধু উপজেলার অ্যাডমিন বদলাতে পারেন।</div>
-      <p class="hint">প্রতি লাইনে একটি। ব্লকের কাজ লেখার সময় এগুলো থেকে বেছে নেওয়া যাবে। বাক্যাংশ এমনভাবে লিখুন যেন পরে "শেষে" বসলে বাক্য ঠিক থাকে।</p>
-      <textarea id="acts"></textarea>
-      <label class="f"><span>প্রকল্পের নাম (প্রতি লাইনে একটি)</span><textarea id="projects" style="min-height:70px"></textarea></label>
-    </div>
-  </section>
-</div>
-
-<datalist id="dlReasons">
-  <option value="জরুরি সভা থাকায়"><option value="ঊর্ধ্বতন কর্তৃপক্ষের নির্দেশে"><option value="প্রতিকূল আবহাওয়ার কারণে">
-  <option value="সরকারি ছুটি ঘোষণা হওয়ায়"><option value="অফিসিয়াল কাজে ব্যস্ত থাকায়"><option value="জরুরি মাঠ পরিস্থিতির কারণে">
-</datalist>
-<datalist id="dlActs"></datalist>
-<datalist id="dlProjects"></datalist>
-
-<script src="app.js"></script>
-</body>
+    <script src="app.js"></script>
+  </body>
 </html>
