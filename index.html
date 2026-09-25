@@ -237,6 +237,7 @@ table.grid td{padding:3px 4px}
         <label class="f"><span>প্রতি মাঠ ভ্রমণে ব্লক</span><select data-s="blocksPerTrip"><option value="1">১টি</option><option value="2">২টি</option><option value="3">৩টি</option></select></label>
         <label class="f"><span>ভ্রমণ বিবরণীর ছক</span><select data-s="diaryLayout"><option value="columns">কলামসহ (ক্রমিক, সময়, দূরত্ব, বিবরণ)</option><option value="narrative">শুধু তারিখ ও বিবরণ</option></select></label>
       </div>
+      <label class="f"><span>ভ্রমণ বিবরণীর যাত্রা, গন্তব্য ও প্রত্যাবর্তন কলামে সংক্ষিপ্ত রূপ (প্রতি লাইনে: পূর্ণ রূপ = সংক্ষিপ্ত রূপ)</span><textarea data-s="abbrText" style="min-height:70px"></textarea></label>
       <label class="f"><span>অগ্রিম সূচির উদ্দেশ্যের তালিকা (প্রতি লাইনে একটি; প্রথম তিনটি স্বয়ংক্রিয় সূচিতে বসবে)</span><textarea id="purposeList" style="min-height:120px"></textarea></label>
     </div>
 
@@ -305,6 +306,7 @@ const DEFAULT_SETTINGS = {
   name:'', designation:'', office:'', hq:'', supervisor:'', vehicle:'অফিসিয়াল গাড়ি',
   dep:'10:10', arr:'10:40', move:'13:00', ret:'17:20', blocksPerTrip:'2', diaryLayout:'columns',
   defaultPurpose:'প্রদর্শনী পর্যবেক্ষণ, মাঠ পরিদর্শন ও কৃষকদের পরামর্শ প্রদান',
+  abbrText:'উপজেলা কৃষি অফিস = উ.কৃ.অফি.\nইউনিয়ন = ইউনি.',
   purposeList:['প্রদর্শনী পর্যবেক্ষণ','মাঠ পরিদর্শন','কৃষকদের পরামর্শ প্রদান','উঠান বৈঠক পরিচালনা','সার ও কীটনাশকের দোকান পরিদর্শন','এসএএও-এর কার্যক্রম তদারকি','বালাই পরিস্থিতি পর্যবেক্ষণ'],
   blocks:[], recurring:[],
   activities:[
@@ -683,7 +685,7 @@ function generate(){
   S.recurring.forEach(r => { const d = recDate(r, y, mo); if(d && r.dest){ rows.push(newOther(d, r)); fixed.add(d); } });
   const days = workingDays(curYM, M.holidays).filter(d => !fixed.has(d));
   const n = Math.min(Math.max(1, parseInt(en(M.tours)) || 1), days.length);
-  const per = Math.max(1, parseInt(S.blocksPerTrip) || 1);
+  const per = Math.min(blocks.length, Math.max(1, parseInt(S.blocksPerTrip) || 1));
   const acts = S.activities.length ? S.activities : ['প্রদর্শনী পর্যবেক্ষণ'];
   let bi = ((y * 12 + mo) * n * per) % blocks.length;
   for(let i=0; i<n; i++){
@@ -753,6 +755,17 @@ function statusOf(r){
 const BADGE = {changed:'<span class="badge ch">পরিবর্তিত</span>', cancel:'<span class="badge cn">বাতিল</span>', added:'<span class="badge ad">অতিরিক্ত</span>'};
 
 /* ---------------- বিবরণ তৈরি ---------------- */
+// শুধু ভ্রমণ বিবরণীর যাত্রা, গন্তব্য ও প্রত্যাবর্তন কলামে সংক্ষিপ্ত রূপ; পুরো শব্দ মিললে তবেই (যেমন "অফিসার" বদলাবে না)
+function abbr(t){
+  const pairs = String(S.abbrText || '').split('\n').map(l => l.split('=')).filter(x => x.length === 2)
+    .map(([a,b]) => [a.trim(), b.trim()]).filter(([a]) => a).sort((x,y) => y[0].length - x[0].length);
+  let out = String(t ?? '');
+  pairs.forEach(([a,b]) => {
+    const re = new RegExp('(?<![\u0980-\u09FF])' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\u0980-\u09FF])', 'g');
+    out = out.replace(re, b);
+  });
+  return out;
+}
 function autoKm(r){
   if(r.kind === 'other') return num(r.km);
   const ks = r.visits.map(v => num((blockOf(v.block) || {}).km));
@@ -928,7 +941,7 @@ function docDiary(){
   }
   return govHeader('ভ্রমণ বিবরণী') + `<table><thead><tr><th>ক্রমিক</th><th>তারিখ ও বার</th><th>যাত্রা (স্থান ও সময়)</th><th>গন্তব্য</th><th>প্রত্যাবর্তন (স্থান ও সময়)</th><th>দূরত্ব, আসা-যাওয়া (কিমি)</th><th style="width:42%">সম্পাদিত কাজের বিবরণ</th></tr></thead><tbody>
   ${list.map((r,i) => `<tr><td class="c">${bn(i+1)}</td><td class="c">${fmtDate(r.date)}<br>${dayName(r.date)}</td>
-    <td>${esc(S.hq)}<br>${tl(r.dep)}</td><td>${esc(r.kind === 'field' ? placesOf(r) : r.dest)}</td><td>${esc(S.hq)}<br>${tl(r.ret)}</td>
+    <td>${esc(abbr(S.hq))}<br>${tl(r.dep)}</td><td>${esc(abbr(r.kind === 'field' ? placesOf(r) : r.dest))}</td><td>${esc(abbr(S.hq))}<br>${tl(r.ret)}</td>
     <td class="r">${kmOf(r) ? bn(kmOf(r)) : ''}</td><td class="j">${esc(narrative(r))}</td></tr>`).join('')}
   <tr><td colspan="5" class="r"><b>মোট</b></td><td class="r"><b>${bn(total)}</b></td><td></td></tr></tbody></table>
   <p class="cert">প্রত্যয়ন করা যাচ্ছে যে, উপরোক্ত ভ্রমণসমূহ সরকারি কাজে সম্পাদিত হয়েছে।</p>` + signBlock();
