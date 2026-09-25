@@ -727,7 +727,7 @@ function advPurpose(r){
   if(r.kind === 'field' && !list.length) list.push(S.defaultPurpose);
   return list.join('\n');
 }
-function fmtPurpose(t){ const a = String(t || '').split('\n').filter(Boolean); return a.length > 1 ? a.map((x,i) => `${bn(i+1)}. ${esc(x)}`).join('<br>') : esc(a[0] || ''); }
+function fmtPurpose(t){ return esc(joinBn(String(t || '').split('\n').filter(Boolean))); }
 function placeKey(r){ return r.kind === 'field' ? 'B:' + r.visits.map(v => v.block).filter(Boolean).join('|') : 'D:' + r.dest; }
 function sameAsAdvance(s, r){ return s.date === r.date && (s.key != null ? s.key === placeKey(r) : s.place === placesOf(r)); }
 function snapshot(){ return M.rows.filter(r => !r.cancelled).map(r => ({id:r.id, date:r.date, place:placesOf(r), key:placeKey(r), purpose:advPurpose(r)})); }
@@ -893,7 +893,7 @@ function signBlock(){
 }
 function docAdvance(){
   const list = M.locked ? M.advance : snapshot();
-  return govHeader('অগ্রিম ভ্রমণসূচি') + `<table><thead><tr><th>ক্রমিক</th><th>তারিখ</th><th>বার</th><th>ভ্রমণের স্থান</th><th>ভ্রমণের উদ্দেশ্য</th><th>মন্তব্য</th></tr></thead><tbody>
+  return govHeader('অগ্রিম ভ্রমণসূচি') + `<table><thead><tr><th style="width:6%">ক্রমিক</th><th style="width:11%">তারিখ</th><th style="width:10%">বার</th><th style="width:22%">ভ্রমণের স্থান</th><th style="width:43%">ভ্রমণের উদ্দেশ্য</th><th style="width:8%">মন্তব্য</th></tr></thead><tbody>
   ${[...list].sort((a,b)=>a.date.localeCompare(b.date)).map((a,i) => `<tr><td class="c">${bn(i+1)}</td><td class="c">${fmtDate(a.date)}</td><td class="c">${dayName(a.date)}</td><td>${esc(a.place)}</td><td>${fmtPurpose(a.purpose)}</td><td></td></tr>`).join('')}
   </tbody></table>` + signBlock();
 }
