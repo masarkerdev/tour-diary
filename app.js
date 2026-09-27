@@ -25,7 +25,7 @@ function tl(t){
 
 /* ---------------- ডিফল্ট ---------------- */
 const DEFAULT_SETTINGS = {
-  name:'', designation:'', office:'', hq:'', supervisor:'', vehicle:'অফিসিয়াল গাড়ি',
+  name:'', designation:'', office:'', hq:'', supervisorName:'', supervisor:'', vehicle:'অফিসিয়াল গাড়ি',
   dep:'10:10', arr:'10:40', move:'13:00', ret:'17:20', blocksPerTrip:'2', diaryLayout:'columns',
   defaultPurpose:'প্রদর্শনী পর্যবেক্ষণ, মাঠ পরিদর্শন ও কৃষকদের পরামর্শ প্রদান',
   abbrText:'উপজেলা কৃষি অফিস = উ.কৃ.অফি.\nইউনিয়ন = ইউনি.',
@@ -645,8 +645,15 @@ function govHeader(title){
   <h3>${title}</h3>
   <div class="meta"><span>মাস: ${MONTHS[m-1]}, ${bn(y)}</span><span>নাম: ${esc(S.name) || '..........'}</span><span>পদবি: ${esc(S.designation) || '..........'}</span></div>`;
 }
+// "উপজেলা কৃষি অফিসার, রাউজান, চট্টগ্রাম" → পদবি এক লাইনে, কর্মস্থল পরের লাইনে
+function roleLines(t){
+  const s = String(t || '').trim(); const i = s.indexOf(',');
+  return i < 0 ? esc(s) : esc(s.slice(0, i).trim()) + '<br>' + esc(s.slice(i + 1).trim());
+}
 function signBlock(){
-  return `<div class="sign"><div>দাখিলকারীর স্বাক্ষর ও তারিখ<br>${esc(S.name)}<br>${esc(S.designation)}</div><div>অনুমোদনকারীর স্বাক্ষর ও তারিখ<br>${esc(S.supervisor)}</div></div>`;
+  const left = ['দাখিলকারীর স্বাক্ষর ও তারিখ', esc(S.name), roleLines(S.designation)].filter(Boolean).join('<br>');
+  const right = ['অনুমোদনকারীর স্বাক্ষর ও তারিখ', esc(S.supervisorName), roleLines(S.supervisor)].filter(Boolean).join('<br>');
+  return `<div class="sign"><div>${left}</div><div>${right}</div></div>`;
 }
 function docAdvance(){
   const list = M.locked ? M.advance : snapshot();
@@ -722,7 +729,10 @@ $('dlWord').onclick = () => {
   if(!canExport()) return;
   // Word এই HTML ফাইলটি সরাসরি খোলে ও এডিট করা যায়; আড়াআড়ি A4 পাতা
   const signTable = docHtml().replace(/<div class="sign"><div>(.*?)<\/div><div>(.*?)<\/div><\/div>/,
-    '<table style="margin-top:40pt;border:none"><tr><td style="border:none;text-align:center">$1</td><td style="border:none;text-align:center">$2</td></tr></table>');
+    '<table style="margin-top:40pt;border:none;width:100%"><tr>' +
+    '<td width="38%" valign="top" style="border:none;border-top:1px dotted #000;text-align:center;vertical-align:top;padding-top:3pt">$1</td>' +
+    '<td width="24%" style="border:none"></td>' +
+    '<td width="38%" valign="top" style="border:none;border-top:1px dotted #000;text-align:center;vertical-align:top;padding-top:3pt">$2</td></tr></table>');
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>${TITLES[curDoc]}</title><style>${DOC_CSS}
 @page Section1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:36pt 36pt 36pt 36pt}div.Section1{page:Section1}</style></head>
