@@ -79,6 +79,16 @@ const Store = {
     if(error) throw error;
   },
   async rpc(fn, args){ const {data, error} = await sb.rpc(fn, args || {}); if(error) throw error; return data; },
+  async monthsSince(fromYM){
+    if(!CLOUD){
+      const out = [];
+      try{ for(let i=0; i<localStorage.length; i++){ const k = localStorage.key(i);
+        if(k.startsWith('bhromon:m-') && k.slice(10) >= fromYM) out.push({ym:k.slice(10), data:JSON.parse(localStorage.getItem(k))}); } }catch(e){}
+      return out;
+    }
+    const {data, error} = await sb.from('tour_months').select('ym,data').eq('user_id', USER.id).gte('ym', fromYM);
+    if(error) throw error; return data || [];
+  },
   async listMonths(){
     if(!CLOUD){ const idx = lsGet('months') || {}; return Object.keys(idx).sort().reverse().map(ym => ({ym, updated_at:idx[ym]})); }
     const {data, error} = await sb.from('tour_months').select('ym,updated_at').eq('user_id', USER.id).order('ym', {ascending:false});
@@ -192,6 +202,7 @@ function openTab(name){
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + name));
   if(name === 'docs') renderDoc();
   if(name === 'archive') renderArchive();
+  if(name === 'cover') renderCoverage();
 }
 document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => openTab(b.dataset.tab));
 
@@ -439,7 +450,51 @@ function workingDays(ym, holidayStr){
   }
   return out;
 }
-function generate(){
+/* ---------------- ব্লক কভারেজ ---------------- */
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+function ymAdd(ym, k){ let [y,m] = ym.split('-').map(Number); m += k; while(m < 1){ m += 12; y--; } while(m > 12){ m -= 12; y++; } return `${y}-${pad(m)}`; }
+const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+// ব্লক অনুযায়ী শেষ ভ্রমণ, গত ১২ মাসে কতবার, আর পরের পরিকল্পিত তারিখ
+// before দিলে শুধু সেই তারিখের আগের ভ্রমণ ধরা হয় (স্বয়ংক্রিয় সূচির জন্য)
+async function coverageMap(before){
+  const today = todayISO(), cutoff = before || today, from = ymAdd(today.slice(0,7), -12);
+  let months = [];
+  try{ months = await Store.monthsSince(from); }catch(e){ console.error(e); }
+  months = months.filter(x => x.ym !== curYM);
+  if(M) months.push({ym:curYM, data:M});
+  const map = {};
+  months.forEach(({data}) => (data.rows || []).forEach(r => {
+    if(r.cancelled || r.kind !== 'field') return;
+    (r.visits || []).forEach(v => {
+      if(!v.block) return;
+      const e = map[v.block] || (map[v.block] = {last:'', count:0, next:''});
+      if(r.date <= today && r.date < (before ? cutoff : '9999')){ if(r.date > e.last) e.last = r.date; if(r.date >= from + '-01') e.count++; }
+      else if(!before && r.date > today && (!e.next || r.date < e.next)) e.next = r.date;
+    });
+  }));
+  return map;
+}
+async function renderCoverage(){
+  const el = $('coverBody'); el.innerHTML = '<p class="hint">হিসাব হচ্ছে…</p>';
+  const blocks = S.blocks.filter(b => b.name.trim());
+  if(!blocks.length){ el.innerHTML = '<p class="hint">সেটআপে কোনো ব্লক নেই।</p>'; return; }
+  const cov = await coverageMap(), today = todayISO();
+  const rows = blocks.map((b, i) => { const c = cov[b.name] || {last:'', count:0, next:''}; return {b, i, ...c, ago: c.last ? daysBetween(c.last, today) : null}; })
+    .sort((x, y) => (x.last || '').localeCompare(y.last || '') || x.i - y.i);
+  const late = rows.filter(r => r.ago == null || r.ago > 90);
+  $('coverSummary').innerHTML = late.length
+    ? `<div class="warn">${bn(blocks.length)}টি ব্লকের মধ্যে ${bn(late.length)}টিতে ৩ মাসের বেশি যাওয়া হয়নি${late.some(r => r.next) ? ' (কয়েকটিতে ভ্রমণ পরিকল্পিত আছে)' : ''}। স্বয়ংক্রিয় সূচি এগুলো আগে বসাবে।</div>`
+    : `<div class="locknote">সব ${bn(blocks.length)}টি ব্লকে গত ৩ মাসের মধ্যে যাওয়া হয়েছে।</div>`;
+  el.innerHTML = `<div class="scroll"><table class="grid cover"><thead><tr><th>ব্লক</th><th>ইউনিয়ন</th><th>শেষ ভ্রমণ</th><th>১২ মাসে</th><th>পরিকল্পিত</th></tr></thead><tbody>
+    ${rows.map(r => `<tr class="${r.ago == null || r.ago > 90 ? 'late' : ''}">
+      <td>${esc(r.b.name)}</td><td>${esc(r.b.union)}</td>
+      <td>${r.last ? `${fmtDate(r.last)}<br><small>${r.ago === 0 ? 'আজ' : bn(r.ago) + ' দিন আগে'}</small>` : '<small>গত ১২ মাসে যাওয়া হয়নি</small>'}
+        ${r.ago == null || r.ago > 90 ? '<br><span class="badge cn">৩ মাসের বেশি</span>' : ''}</td>
+      <td>${bn(r.count)} বার</td><td>${r.next ? fmtDate(r.next) : ''}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+async function generate(){
   const [y, mo] = curYM.split('-').map(Number);
   const blocks = S.blocks.filter(b => b.name.trim());
   if(!blocks.length){ $('genHint').textContent = canEditShared() ? 'আগে সেটআপে ব্লকের তালিকা দিন।' : 'উপজেলার অ্যাডমিন এখনো ব্লকের তালিকা দেননি। তাঁকে জানান।'; return; }
@@ -450,19 +505,30 @@ function generate(){
   const n = Math.min(Math.max(1, parseInt(en(M.tours)) || 1), days.length);
   const per = Math.min(blocks.length, Math.max(1, parseInt(S.blocksPerTrip) || 1));
   const acts = S.activities.length ? S.activities : ['প্রদর্শনী পর্যবেক্ষণ'];
-  let bi = ((y * 12 + mo) * n * per) % blocks.length;
+  // সবচেয়ে বেশিদিন না যাওয়া ব্লক আগে; বাছাইয়ের পর সেটআপের ক্রমে সাজানো যাতে পাশাপাশি ব্লক একদিনে পড়ে
+  $('genHint').textContent = 'কোন ব্লকে কবে গেছেন দেখে সূচি তৈরি হচ্ছে…';
+  const cov = await coverageMap(`${curYM}-01`);
+  const order = blocks.map((b, i) => ({b, i, last:(cov[b.name] || {}).last || ''}))
+    .sort((a, b) => a.last.localeCompare(b.last) || a.i - b.i);
+  const need = n * per, picked = [];
+  while(picked.length < need){
+    const batch = order.slice(0, Math.min(order.length, need - picked.length)).sort((a, b) => a.i - b.i);
+    picked.push(...batch.map(x => x.b));
+  }
+  let k = 0;
   for(let i=0; i<n; i++){
     const r = newField(days[Math.floor(i * days.length / n)]);
     r.purposes = (S.purposeList || []).slice(0, 3);
     r.visits = [];
     for(let j=0; j<per; j++){
-      r.visits.push(newVisit(blocks[bi % blocks.length].name, acts[(i + j*2) % acts.length]));
-      bi++;
+      const b = picked[k++];
+      if(!r.visits.some(v => v.block === b.name)) r.visits.push(newVisit(b.name, acts[(i + j*2) % acts.length]));
     }
     rows.push(r);
   }
+  const neglected = order.slice(0, need).filter(x => !x.last || daysBetween(x.last, `${curYM}-01`) > 90).length;
   M.rows = rows.sort((a,b) => a.date.localeCompare(b.date));
-  $('genHint').textContent = `${bn(n)}টি মাঠ ভ্রমণ${fixed.size ? ` ও ${bn(fixed.size)}টি নির্দিষ্ট ভ্রমণ` : ''} বসানো হয়েছে। প্রতিটি খুলে প্রদর্শনীর কৃষক ও কাজ ঠিক করে নিন।`;
+  $('genHint').textContent = `${bn(n)}টি মাঠ ভ্রমণ${fixed.size ? ` ও ${bn(fixed.size)}টি নির্দিষ্ট ভ্রমণ` : ''} বসানো হয়েছে। যেসব ব্লকে বেশিদিন যাওয়া হয়নি সেগুলো আগে রাখা হয়েছে${neglected ? ` (এর মধ্যে ${bn(neglected)}টিতে ৩ মাসের বেশি যাওয়া হয়নি)` : ''}। প্রতিটি খুলে প্রদর্শনীর কৃষক ও কাজ ঠিক করে নিন।`;
   renderRows(); saveMonth();
 }
 $('gen').onclick = () => {
