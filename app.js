@@ -700,7 +700,8 @@ function docDiary(){
     return `<h3>${esc(S.name)}, ${esc(S.designation)} এর ${MONTHS[m-1]}/${bn(String(y).slice(2))} ইং মাসের ভ্রমণ বিবরণীঃ</h3>
     <table><thead><tr><th style="width:95px">তারিখ</th><th>ভ্রমণের বিবরণ</th></tr></thead><tbody>
     ${list.map(r => `<tr><td class="c">${fmtDate(r.date)}</td><td class="j">${esc(narrative(r))}</td></tr>`).join('')}
-    <tr><td class="r"><b>মোট</b></td><td><b>আসা-যাওয়ায় ${bn(total)} কিঃ মিঃ</b></td></tr></tbody></table>` + memoLine() + signBlock();
+    <tr><td class="r"><b>মোট</b></td><td><b>আসা-যাওয়ায় ${bn(total)} কিঃ মিঃ</b></td></tr></tbody></table>
+    <p class="cert">প্রত্যয়ন করা যাচ্ছে যে, উপরোক্ত ভ্রমণসমূহ সরকারি কাজে সম্পাদিত হয়েছে।</p>` + memoLine() + signBlock();
   }
   return govHeader('ভ্রমণ বিবরণী') + `<table><thead><tr><th>ক্রমিক</th><th>তারিখ ও বার</th><th>যাত্রা (স্থান ও সময়)</th><th>গন্তব্য</th><th>প্রত্যাবর্তন (স্থান ও সময়)</th><th>দূরত্ব, আসা-যাওয়া (কিমি)</th><th style="width:42%">সম্পাদিত কাজের বিবরণ</th></tr></thead><tbody>
   ${list.map((r,i) => `<tr><td class="c">${bn(i+1)}</td><td class="c">${fmtDate(r.date)}<br>${dayName(r.date)}</td>
