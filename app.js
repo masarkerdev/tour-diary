@@ -487,7 +487,7 @@ function syncNeeded(r){ const s = advSnap(r); return !!(s && !r.cancelled && s.p
 const BADGE = {changed:'<span class="badge ch">পরিবর্তিত</span>', cancel:'<span class="badge cn">বাতিল</span>', added:'<span class="badge ad">অতিরিক্ত</span>'};
 
 /* ---------------- বিবরণ তৈরি ---------------- */
-// শুধু ভ্রমণ বিবরণীর যাত্রা, গন্তব্য ও প্রত্যাবর্তন কলামে সংক্ষিপ্ত রূপ; পুরো শব্দ মিললে তবেই (যেমন "অফিসার" বদলাবে না)
+// ভ্রমণ বিবরণীর যাত্রা, গন্তব্য ও প্রত্যাবর্তন কলামে এবং সংশোধিত সূচির স্থান কলামে সংক্ষিপ্ত রূপ; পুরো শব্দ মিললে তবেই (যেমন "অফিসার" বদলাবে না)
 function abbr(t){
   const pairs = String(S.abbrText || '').split('\n').map(l => l.split('=')).filter(x => x.length === 2)
     .map(([a,b]) => [a.trim(), b.trim()]).filter(([a]) => a).sort((x,y) => y[0].length - x[0].length);
@@ -678,8 +678,8 @@ function docRevised(){
   <tr><th rowspan="2">ক্রমিক</th><th colspan="2">অগ্রিম ভ্রমণসূচি অনুযায়ী</th><th colspan="3">সংশোধিত ভ্রমণসূচি</th><th rowspan="2">পরিবর্তনের কারণ</th></tr>
   <tr><th>তারিখ</th><th>স্থান</th><th>তারিখ</th><th>স্থান</th><th>উদ্দেশ্য</th></tr></thead><tbody>
   ${items.map((it,i) => `<tr><td class="c">${bn(i+1)}</td>
-    ${it.old ? `<td class="c">${fmtDate(it.old.date)}</td><td>${esc(it.old.place)}</td>` : `<td class="c" colspan="2">অগ্রিম সূচিতে ছিল না</td>`}
-    ${it.now ? `<td class="c">${fmtDate(it.now.date)}</td><td>${esc(placesOf(it.now))}</td><td>${fmtPurpose(advPurpose(it.now))}</td>` : `<td class="c" colspan="3">ভ্রমণ বাতিল</td>`}
+    ${it.old ? `<td class="c">${fmtDate(it.old.date)}</td><td>${esc(abbr(it.old.place))}</td>` : `<td class="c" colspan="2">অগ্রিম সূচিতে ছিল না</td>`}
+    ${it.now ? `<td class="c">${fmtDate(it.now.date)}</td><td>${esc(abbr(placesOf(it.now)))}</td><td>${fmtPurpose(advPurpose(it.now))}</td>` : `<td class="c" colspan="3">ভ্রমণ বাতিল</td>`}
     <td>${it.same ? 'অপরিবর্তিত' : esc(it.reason)}</td></tr>`).join('')}
   </tbody></table>` + signBlock();
 }
