@@ -647,8 +647,11 @@ function govHeader(title){
 }
 // "উপজেলা কৃষি অফিসার, রাউজান, চট্টগ্রাম" → পদবি এক লাইনে, কর্মস্থল পরের লাইনে
 function roleLines(t){
-  const s = String(t || '').trim(); const i = s.indexOf(',');
-  return i < 0 ? esc(s) : esc(s.slice(0, i).trim()) + '<br>' + esc(s.slice(i + 1).trim());
+  const s = String(t || '').trim();
+  const m = s.match(/[,،，﹐、]/); // ইংরেজি, আরবি ও অন্যান্য কমা — বাংলা কিবোর্ডে যেকোনোটা আসতে পারে
+  if(!m) return esc(s);
+  const i = m.index;
+  return esc(s.slice(0, i).trim()) + '<br>' + esc(s.slice(i + 1).trim());
 }
 function signBlock(){
   const left = ['দাখিলকারীর স্বাক্ষর ও তারিখ', esc(S.name), roleLines(S.designation)].filter(Boolean).join('<br>');
