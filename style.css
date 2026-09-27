@@ -116,3 +116,4 @@ table.cover{min-width:520px}
 table.cover td{border-bottom:1px solid var(--rule);padding:7px 4px;vertical-align:top;font-size:.92rem}
 table.cover tr.late td:first-child{border-left:3px solid var(--danger);padding-left:6px}
 table.cover small{color:var(--muted)}
+.status.off{color:var(--turmeric);font-weight:600}

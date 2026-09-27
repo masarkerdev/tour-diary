@@ -47,36 +47,94 @@ const CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase);
 const sb = CLOUD ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
 let USER = null;
 
+/* ইন্টারনেট ছাড়া কাজ: সার্ভারের তথ্যের কপি ফোনে থাকে, আর না পাঠানো পরিবর্তন "আউটবক্সে" জমা থাকে */
+const ckey = k => `c:${USER.id}:${k}`;
+const cacheGet = k => lsGet(ckey(k));
+const cacheSet = (k, v) => lsSet(ckey(k), v);
+const obKey = () => `outbox:${USER.id}`;
+const obGet = () => (USER && CLOUD) ? (lsGet(obKey()) || {}) : {};
+function obPut(k, v){ const o = obGet(); o[k] = v; lsSet(obKey(), o); }
+function obDel(k){ const o = obGet(); if(k in o){ delete o[k]; lsSet(obKey(), o); } }
+const obCount = () => Object.keys(obGet()).length;
+const isNet = e => !navigator.onLine || /fetch|network|load failed|timeout/i.test(String((e && (e.message || e.details)) || e));
+const R = { // সরাসরি সার্ভারে
+  async profile(d){ const {error} = await sb.from('profiles').upsert({user_id:USER.id, data:d, updated_at:new Date().toISOString()}); if(error) throw error; },
+  async month(ym, d){ const {error} = await sb.from('tour_months').upsert({user_id:USER.id, ym, data:d, updated_at:new Date().toISOString()}); if(error) throw error; },
+  async upazila(id, d){ const {error} = await sb.from('upazilas').update({data:d, updated_at:new Date().toISOString()}).eq('id', id); if(error) throw error; }
+};
+async function cloudSave(key, entry, fn){
+  try{ await fn(); obDel(key); return 'ok'; }
+  catch(e){ if(isNet(e)){ obPut(key, entry); return 'queued'; } throw e; }
+}
+let flushing = false;
+async function flushOutbox(){
+  if(!CLOUD || !USER || flushing || !navigator.onLine || !obCount()) return;
+  flushing = true;
+  try{
+    try{ await sb.auth.getSession(); }catch(e){} // মেয়াদ শেষ হলে লগইন নবায়ন
+    for(const [k, v] of Object.entries(obGet())){
+      try{
+        if(v.op === 'profile') await R.profile(v.data);
+        else if(v.op === 'month') await R.month(v.ym, v.data);
+        else if(v.op === 'upazila') await R.upazila(v.id, v.data);
+        obDel(k);
+      }catch(e){ if(isNet(e)) break; console.error(e); obDel(k); }
+    }
+  } finally { flushing = false; updateNetState(); }
+}
+function updateNetState(){
+  if(Object.keys(pending).length) return;
+  const n = obCount();
+  if(n) setSaveState(navigator.onLine ? 'সংরক্ষণ বাকি, আবার চেষ্টা হচ্ছে…' : 'অফলাইন: ফোনে রাখা আছে, ইন্টারনেট এলে সংরক্ষণ হবে');
+  else setSaveState(navigator.onLine ? 'সংরক্ষিত' : 'অফলাইন');
+}
+window.addEventListener('online', () => { updateNetState(); flushOutbox(); });
+window.addEventListener('offline', updateNetState);
+setInterval(() => { if(obCount()) flushOutbox(); }, 30000);
+
 const Store = {
   async getProfile(){
     if(!CLOUD) return lsGet('profile');
-    const {data, error} = await sb.from('profiles').select('data').eq('user_id', USER.id).maybeSingle();
-    if(error) throw error; return data ? data.data : null;
+    const q = obGet().profile; if(q) return q.data; // না পাঠানো পরিবর্তনই সবচেয়ে নতুন
+    try{
+      const {data, error} = await sb.from('profiles').select('data').eq('user_id', USER.id).maybeSingle();
+      if(error) throw error; const v = data ? data.data : null; cacheSet('profile', v); return v;
+    }catch(e){ if(isNet(e)) return cacheGet('profile'); throw e; }
   },
   async saveProfile(d){
     if(!CLOUD) return lsSet('profile', d);
-    const {error} = await sb.from('profiles').upsert({user_id:USER.id, data:d, updated_at:new Date().toISOString()});
-    if(error) throw error;
+    cacheSet('profile', d);
+    return cloudSave('profile', {op:'profile', data:d}, () => R.profile(d));
   },
   async getMonth(ym){
     if(!CLOUD) return lsGet('m-'+ym);
-    const {data, error} = await sb.from('tour_months').select('data').eq('user_id', USER.id).eq('ym', ym).maybeSingle();
-    if(error) throw error; return data ? data.data : null;
+    const q = obGet()['m-'+ym]; if(q) return q.data;
+    try{
+      const {data, error} = await sb.from('tour_months').select('data').eq('user_id', USER.id).eq('ym', ym).maybeSingle();
+      if(error) throw error; const v = data ? data.data : null; if(v) cacheSet('m-'+ym, v); return v;
+    }catch(e){ if(isNet(e)) return cacheGet('m-'+ym); throw e; }
   },
   async saveMonth(ym, d){
     if(!CLOUD){ lsSet('m-'+ym, d); const idx = lsGet('months') || {}; idx[ym] = new Date().toISOString(); return lsSet('months', idx); }
-    const {error} = await sb.from('tour_months').upsert({user_id:USER.id, ym, data:d, updated_at:new Date().toISOString()});
-    if(error) throw error;
+    cacheSet('m-'+ym, d);
+    const idx = cacheGet('months') || {}; idx[ym] = new Date().toISOString(); cacheSet('months', idx);
+    return cloudSave('m-'+ym, {op:'month', ym, data:d}, () => R.month(ym, d));
   },
   async myUpazila(){
-    const {data:m, error} = await sb.from('upazila_members').select('upazila_id,role').eq('user_id', USER.id).maybeSingle();
-    if(error) throw error; if(!m) return null;
-    const {data:u, error:e2} = await sb.from('upazilas').select('id,district,name,data').eq('id', m.upazila_id).maybeSingle();
-    if(e2) throw e2; return u ? Object.assign(u, {role:m.role}) : null;
+    const q = obGet().upazila;
+    try{
+      const {data:m, error} = await sb.from('upazila_members').select('upazila_id,role').eq('user_id', USER.id).maybeSingle();
+      if(error) throw error; if(!m){ cacheSet('upazila', null); return null; }
+      const {data:u, error:e2} = await sb.from('upazilas').select('id,district,name,data').eq('id', m.upazila_id).maybeSingle();
+      if(e2) throw e2;
+      const v = u ? Object.assign(u, {role:m.role}) : null;
+      if(v && q && q.id === v.id) v.data = q.data; // না পাঠানো পরিবর্তন
+      cacheSet('upazila', v); return v;
+    }catch(e){ if(isNet(e)){ const v = cacheGet('upazila'); if(v && q && q.id === v.id) v.data = q.data; return v; } throw e; }
   },
   async saveUpazila(id, d){
-    const {error} = await sb.from('upazilas').update({data:d, updated_at:new Date().toISOString()}).eq('id', id);
-    if(error) throw error;
+    const c = cacheGet('upazila'); if(c && c.id === id){ c.data = d; cacheSet('upazila', c); }
+    return cloudSave('upazila', {op:'upazila', id, data:d}, () => R.upazila(id, d));
   },
   async rpc(fn, args){ const {data, error} = await sb.rpc(fn, args || {}); if(error) throw error; return data; },
   async monthsSince(fromYM){
@@ -86,13 +144,28 @@ const Store = {
         if(k.startsWith('bhromon:m-') && k.slice(10) >= fromYM) out.push({ym:k.slice(10), data:JSON.parse(localStorage.getItem(k))}); } }catch(e){}
       return out;
     }
-    const {data, error} = await sb.from('tour_months').select('ym,data').eq('user_id', USER.id).gte('ym', fromYM);
-    if(error) throw error; return data || [];
+    try{
+      const {data, error} = await sb.from('tour_months').select('ym,data').eq('user_id', USER.id).gte('ym', fromYM);
+      if(error) throw error;
+      const ob = obGet();
+      return (data || []).map(x => ob['m-'+x.ym] ? {ym:x.ym, data:ob['m-'+x.ym].data} : x);
+    }catch(e){
+      if(!isNet(e)) throw e;
+      const idx = cacheGet('months') || {};
+      return Object.keys(idx).filter(ym => ym >= fromYM).map(ym => ({ym, data:cacheGet('m-'+ym)})).filter(x => x.data);
+    }
   },
   async listMonths(){
     if(!CLOUD){ const idx = lsGet('months') || {}; return Object.keys(idx).sort().reverse().map(ym => ({ym, updated_at:idx[ym]})); }
-    const {data, error} = await sb.from('tour_months').select('ym,updated_at').eq('user_id', USER.id).order('ym', {ascending:false});
-    if(error) throw error; return data || [];
+    try{
+      const {data, error} = await sb.from('tour_months').select('ym,updated_at').eq('user_id', USER.id).order('ym', {ascending:false});
+      if(error) throw error;
+      const idx = cacheGet('months') || {}; (data || []).forEach(x => { if(!idx[x.ym]) idx[x.ym] = x.updated_at; }); cacheSet('months', idx);
+      return data || [];
+    }catch(e){
+      if(!isNet(e)) throw e;
+      const idx = cacheGet('months') || {}; return Object.keys(idx).sort().reverse().map(ym => ({ym, updated_at:idx[ym]}));
+    }
   }
 };
 function lsGet(k){ try{ const v = localStorage.getItem('bhromon:'+k); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
@@ -102,7 +175,7 @@ function lsSet(k,v){ try{ localStorage.setItem('bhromon:'+k, JSON.stringify(v));
 let S = clone(DEFAULT_SETTINGS);
 let M = null, curYM = '', curDoc = 'advance';
 const pending = {};
-function setSaveState(t){ const el = $('saveState'); el.textContent = t; el.classList.toggle('bad', /হয়নি|যায়নি/.test(t)); }
+function setSaveState(t){ const el = $('saveState'); el.textContent = t; el.classList.toggle('bad', /হয়নি|যায়নি/.test(t)); el.classList.toggle('off', /অফলাইন|বাকি/.test(t)); }
 function queue(key, fn){
   setSaveState('সংরক্ষণ হচ্ছে…');
   clearTimeout(pending[key]?.t);
@@ -110,8 +183,8 @@ function queue(key, fn){
 }
 async function run(key){
   const p = pending[key]; if(!p) return; delete pending[key];
-  try{ await p.fn(); if(!Object.keys(pending).length) setSaveState('সংরক্ষিত'); }
-  catch(e){ console.error(e); setSaveState('সংরক্ষণ হয়নি, ইন্টারনেট দেখুন'); }
+  try{ await p.fn(); updateNetState(); }
+  catch(e){ console.error(e); setSaveState('সংরক্ষণ হয়নি: ' + ((e && e.message) || 'অজানা সমস্যা')); }
 }
 async function flush(){ await Promise.all(Object.keys(pending).map(k => { clearTimeout(pending[k].t); return run(k); })); }
 const SHARED_KEYS = ['hq','memoPrefix','blocks','projects','purposeList','activities','recurring'];
@@ -193,7 +266,12 @@ $('aForgot').onclick = async () => {
 };
 $('logout').onclick = async () => {
   await flush();
-  if(CLOUD){ await sb.auth.signOut(); location.reload(); }
+  if(!CLOUD) return;
+  if(obCount()){ await flushOutbox(); }
+  if(obCount()){ alert('কিছু তথ্য এখনো সার্ভারে যায়নি। ইন্টারনেট চালু করে উপরে "সংরক্ষিত" দেখা পর্যন্ত অপেক্ষা করুন, তারপর লগআউট করুন।'); return; }
+  try{ Object.keys(localStorage).filter(k => k.startsWith(`bhromon:c:${USER.id}:`)).forEach(k => localStorage.removeItem(k)); localStorage.removeItem('bhromon:lastUser'); }catch(e){}
+  try{ await sb.auth.signOut(); }catch(e){}
+  location.reload();
 };
 
 /* ---------------- ট্যাব ---------------- */
@@ -907,6 +985,7 @@ let started = false;
 async function startApp(user){
   if(started) return; started = true;
   USER = user;
+  if(CLOUD && user) lsSet('lastUser', {id:user.id, email:user.email, user_metadata:user.user_metadata || {}});
   $('authView').hidden = true; $('appView').hidden = false;
   $('demoBanner').hidden = CLOUD; $('logout').hidden = !CLOUD;
   try{
@@ -921,6 +1000,7 @@ async function startApp(user){
   await loadMonth(`${now.getFullYear()}-${pad(now.getMonth()+1)}`);
   renderJoinBanner();
   if(!S.blocks.length || (CLOUD && !U)) openTab('setup');
+  updateNetState(); flushOutbox();
 }
 async function boot(){
   if(!CLOUD){ startApp(null); return; }
@@ -931,9 +1011,27 @@ async function boot(){
     }
     if(session && session.user) startApp(session.user);
   });
-  const {data} = await sb.auth.getSession();
-  if(data.session) startApp(data.session.user);
+  let session = null;
+  try{ const {data} = await sb.auth.getSession(); session = data.session; }catch(e){}
+  const last = lsGet('lastUser');
+  if(session) startApp(session.user);
+  else if(last && !navigator.onLine) startApp(last); // ইন্টারনেট নেই: আগের লগইনে ফোনের কপি দিয়ে চালু
   else { $('authView').hidden = false; setMode(false); }
 }
 boot();
+
+/* ---------------- মোবাইলে অ্যাপ হিসেবে ইনস্টল ---------------- */
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.error(e)));
+}
+let installEvt = null;
+const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('installBtn').hidden = false; });
+window.addEventListener('appinstalled', () => { $('installBtn').hidden = true; installEvt = null; });
+if(isIOS && !standalone()) $('installBtn').hidden = false;
+$('installBtn').onclick = async () => {
+  if(installEvt){ installEvt.prompt(); await installEvt.userChoice; installEvt = null; $('installBtn').hidden = true; return; }
+  alert('আইফোনে: Safari-তে নিচের "Share" বোতাম চাপুন, তারপর "Add to Home Screen" বাছুন।');
+};
 })();
