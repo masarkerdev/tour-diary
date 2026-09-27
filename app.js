@@ -643,9 +643,11 @@ function govHeader(title){
   const {y,m} = ymParts();
   return `<div class="gov"><div>গণপ্রজাতন্ত্রী বাংলাদেশ সরকার</div><div class="t2">কৃষি সম্প্রসারণ অধিদপ্তর</div><div>${esc(S.office)}</div></div>
   <h3>${title}</h3>
-  <div class="meta"><span>মাস: ${MONTHS[m-1]}, ${bn(y)}</span><span>নাম: ${esc(S.name) || '..........'}</span><span>পদবি: ${esc(S.designation) || '..........'}</span></div>`;
+  <div class="meta"><span>মাস: ${MONTHS[m-1]}, ${bn(y)}</span><span>নাম: ${esc(S.name) || '..........'}</span><span>পদবি: ${esc(roleTitle(S.designation)) || '..........'}</span></div>`;
 }
 // "উপজেলা কৃষি অফিসার, রাউজান, চট্টগ্রাম" → পদবি এক লাইনে, কর্মস্থল পরের লাইনে
+// শুধু পদবি (প্রথম কমার আগের অংশ), কর্মস্থল বাদে
+function roleTitle(t){ const s = String(t || '').trim(); const m = s.match(/[,،，﹐、]/); return m ? s.slice(0, m.index).trim() : s; }
 function roleLines(t){
   const s = String(t || '').trim();
   const m = s.match(/[,،，﹐、]/); // ইংরেজি, আরবি ও অন্যান্য কমা — বাংলা কিবোর্ডে যেকোনোটা আসতে পারে
