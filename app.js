@@ -458,8 +458,16 @@ function snapshot(){ return M.rows.filter(r => !r.cancelled).map(r => ({id:r.id,
 function renderLock(){
   const b = $('lockBox');
   if(M.locked){
-    b.innerHTML = `<div><strong>অগ্রিম সূচি চূড়ান্ত</strong><div class="hint" style="margin:2px 0 0">এখন যেকোনো ভ্রমণ বদলালে সংশোধিত সূচিতে নিজে থেকে দেখাবে। ভ্রমণ না হলে "বাতিল" দিন, মুছবেন না।</div></div>
+    const pend = M.rows.filter(syncNeeded).length;
+    b.innerHTML = `<div><strong>অগ্রিম সূচি চূড়ান্ত</strong><div class="hint" style="margin:2px 0 0">এখন যেকোনো ভ্রমণ বদলালে সংশোধিত সূচিতে নিজে থেকে দেখাবে। ভ্রমণ না হলে "বাতিল" দিন, মুছবেন না।</div>
+      ${pend ? `<div class="locknote">${bn(pend)}টি ভ্রমণের উদ্দেশ্য অগ্রিম সূচির সাথে মিলছে না। অগ্রিম সূচি এখনো জমা না দিলে উদ্দেশ্যগুলো সেখানেও বসাতে পারেন (তারিখ ও স্থান বদলাবে না)।
+        <div class="acts" style="margin-top:6px"><button class="btn small leaf" id="syncAll">সব উদ্দেশ্য অগ্রিম সূচিতে বসান</button></div></div>` : ''}</div>
       <button class="btn small" id="unlock">চূড়ান্ত বাতিল</button>`;
+    if(pend) $('syncAll').onclick = () => {
+      if(!confirm('অগ্রিম সূচিতে শুধু উদ্দেশ্যগুলো বদলাবে, তারিখ ও স্থান আগের মতোই থাকবে। চালিয়ে যাবেন?')) return;
+      M.rows.filter(syncNeeded).forEach(r => { advSnap(r).purpose = advPurpose(r); });
+      renderRows(); saveMonth();
+    };
     $('unlock').onclick = () => { if(confirm('চূড়ান্ত বাতিল করলে সংরক্ষিত অগ্রিম সূচি মুছে যাবে। এর পর আবার চূড়ান্ত করতে হবে। চালিয়ে যাবেন?')){ M.locked = false; M.advance = null; renderPlan(); saveMonth(); } };
   } else {
     b.innerHTML = `<div><strong>অগ্রিম সূচি এখনো চূড়ান্ত নয়</strong><div class="hint" style="margin:2px 0 0">জমা দেওয়ার দিন চূড়ান্ত করুন। এরপর সব পরিবর্তন সংশোধিত সূচিতে আলাদা করে দেখাবে।</div></div>
@@ -474,6 +482,8 @@ function statusOf(r){
   if(r.cancelled) return 'cancel';
   return sameAsAdvance(s, r) ? '' : 'changed';
 }
+function advSnap(r){ return M.locked ? (M.advance || []).find(a => a.id === r.id) : null; }
+function syncNeeded(r){ const s = advSnap(r); return !!(s && !r.cancelled && s.purpose !== advPurpose(r)); }
 const BADGE = {changed:'<span class="badge ch">পরিবর্তিত</span>', cancel:'<span class="badge cn">বাতিল</span>', added:'<span class="badge ad">অতিরিক্ত</span>'};
 
 /* ---------------- বিবরণ তৈরি ---------------- */
@@ -559,6 +569,8 @@ function cardHtml(r, i){
         <label class="f"><span>কাজ</span><input data-k="visits.${j}.work" list="dlActs" value="${esc(v.work)}"></label>
       </div>`).join('') + `<button class="btn small" data-addv>আরেকটি ব্লক যোগ</button>`
     : `<label class="f"><span>উদ্দেশ্য</span><input data-k="purpose" value="${esc(r.purpose)}" placeholder="যেমন: মাসিক সমন্বয় সভায় যোগদান"></label>`}
+    ${advSnap(r) ? `<div class="locknote" data-syncnote ${syncNeeded(r) ? '' : 'hidden'}>অগ্রিম সূচি চূড়ান্ত করা আছে, তাই এই উদ্দেশ্য এখন শুধু সংশোধিত সূচিতে যাচ্ছে।
+      <div class="acts" style="margin-top:6px"><button class="btn small leaf" data-advsync>অগ্রিম সূচিতেও বসান</button></div></div>` : ''}
     <div class="g4">
       <label class="f"><span>রওয়ানা</span><input type="time" data-k="dep" value="${r.dep}"></label>
       <label class="f"><span>পৌঁছানো</span><input type="time" data-k="arr" value="${r.arr}"></label>
@@ -590,6 +602,8 @@ function refreshCard(card, r){
   card.querySelector('[data-sum]').textContent = summaryText(r);
   const st = statusOf(r);
   card.querySelector('[data-badge]').innerHTML = BADGE[st] || '';
+  const note = card.querySelector('[data-syncnote]'); if(note) note.hidden = !syncNeeded(r);
+  if(M.locked) renderLock();
   const hasReason = !!card.querySelector('[data-k="reason"]');
   if(!!st !== hasReason) rerender(r.id);
 }
@@ -606,7 +620,15 @@ $('rows').addEventListener('click', e => {
     r.purposes = r.purposes || [];
     const p = t.dataset.pp, i = r.purposes.indexOf(p);
     if(i >= 0) r.purposes.splice(i, 1); else r.purposes.push(p);
-    t.setAttribute('aria-pressed', i < 0); saveMonth(); return;
+    t.setAttribute('aria-pressed', i < 0);
+    const note = t.closest('.trip').querySelector('[data-syncnote]'); if(note) note.hidden = !syncNeeded(r);
+    if(M.locked) renderLock();
+    saveMonth(); return;
+  }
+  if(t.hasAttribute('data-advsync')){
+    const snap = advSnap(r); if(!snap) return;
+    snap.purpose = advPurpose(r);
+    t.closest('[data-syncnote]').hidden = true; renderLock(); saveMonth(); return;
   }
   if(t.dataset.kind){ if(r.kind !== t.dataset.kind){ r.kind = t.dataset.kind; if(r.kind === 'field' && !r.visits.length) r.visits = [newVisit()]; rerender(r.id); saveMonth(); } }
   else if(t.hasAttribute('data-addv')){ r.visits.push(newVisit()); rerender(r.id); saveMonth(); }
