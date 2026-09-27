@@ -25,7 +25,7 @@ function tl(t){
 
 /* ---------------- ডিফল্ট ---------------- */
 const DEFAULT_SETTINGS = {
-  name:'', designation:'', office:'', hq:'', supervisorName:'', supervisor:'', vehicle:'অফিসিয়াল গাড়ি',
+  name:'', designation:'', office:'', hq:'', supervisorName:'', supervisor:'', memoPrefix:'', vehicle:'অফিসিয়াল গাড়ি',
   dep:'10:10', arr:'10:40', move:'13:00', ret:'17:20', blocksPerTrip:'2', diaryLayout:'columns',
   defaultPurpose:'প্রদর্শনী পর্যবেক্ষণ, মাঠ পরিদর্শন ও কৃষকদের পরামর্শ প্রদান',
   abbrText:'উপজেলা কৃষি অফিস = উ.কৃ.অফি.\nইউনিয়ন = ইউনি.',
@@ -104,7 +104,7 @@ async function run(key){
   catch(e){ console.error(e); setSaveState('সংরক্ষণ হয়নি, ইন্টারনেট দেখুন'); }
 }
 async function flush(){ await Promise.all(Object.keys(pending).map(k => { clearTimeout(pending[k].t); return run(k); })); }
-const SHARED_KEYS = ['hq','blocks','projects','purposeList','activities','recurring'];
+const SHARED_KEYS = ['hq','memoPrefix','blocks','projects','purposeList','activities','recurring'];
 let U = null; // বর্তমান উপজেলা {id, district, name, role, data}
 const canEditShared = () => !U || U.role === 'admin';
 function sharedPart(){ const d = {}; SHARED_KEYS.forEach(k => d[k] = clone(S[k] ?? DEFAULT_SETTINGS[k])); return d; }
@@ -185,7 +185,7 @@ function renderSetup(){
 }
 function applyLock(){
   const lock = !canEditShared();
-  const sel = ['[data-s="hq"]','#blocksBody input','#blocksBody button','#bulk','#bulkAdd','#addBlock','#recList input','#recList select','#recList button','#addRec','#acts','#projects','#purposeList'];
+  const sel = ['[data-s="hq"]','[data-s="memoPrefix"]','#blocksBody input','#blocksBody button','#bulk','#bulkAdd','#addBlock','#recList input','#recList select','#recList button','#addRec','#acts','#projects','#purposeList'];
   document.querySelectorAll(sel.join(',')).forEach(el => { el.disabled = lock; });
   document.querySelectorAll('[data-locknote]').forEach(el => { el.hidden = !lock; });
 }
@@ -685,6 +685,13 @@ function docRevised(){
     <td>${it.same ? 'অপরিবর্তিত' : esc(it.reason)}</td></tr>`).join('')}
   </tbody></table>` + signBlock();
 }
+function memoLine(){
+  const no = (S.memoPrefix || '') + (M.memoNo || '');
+  const dots = '....................';
+  return `<table style="border:none;width:100%;margin-top:10pt"><tr>
+    <td style="border:none;padding:0;text-align:left">স্মারক নং: ${no.trim() ? esc(bn(no)) : dots}</td>
+    <td style="border:none;padding:0;text-align:right">তাং: ${M.memoDate ? fmtDate(M.memoDate) : dots}</td></tr></table>`;
+}
 function docDiary(){
   const {y,m} = ymParts();
   const list = M.rows.filter(r => !r.cancelled).sort((a,b) => a.date.localeCompare(b.date));
@@ -693,17 +700,19 @@ function docDiary(){
     return `<h3>${esc(S.name)}, ${esc(S.designation)} এর ${MONTHS[m-1]}/${bn(String(y).slice(2))} ইং মাসের ভ্রমণ বিবরণীঃ</h3>
     <table><thead><tr><th style="width:95px">তারিখ</th><th>ভ্রমণের বিবরণ</th></tr></thead><tbody>
     ${list.map(r => `<tr><td class="c">${fmtDate(r.date)}</td><td class="j">${esc(narrative(r))}</td></tr>`).join('')}
-    <tr><td class="r"><b>মোট</b></td><td><b>আসা-যাওয়ায় ${bn(total)} কিঃ মিঃ</b></td></tr></tbody></table>` + signBlock();
+    <tr><td class="r"><b>মোট</b></td><td><b>আসা-যাওয়ায় ${bn(total)} কিঃ মিঃ</b></td></tr></tbody></table>` + memoLine() + signBlock();
   }
   return govHeader('ভ্রমণ বিবরণী') + `<table><thead><tr><th>ক্রমিক</th><th>তারিখ ও বার</th><th>যাত্রা (স্থান ও সময়)</th><th>গন্তব্য</th><th>প্রত্যাবর্তন (স্থান ও সময়)</th><th>দূরত্ব, আসা-যাওয়া (কিমি)</th><th style="width:42%">সম্পাদিত কাজের বিবরণ</th></tr></thead><tbody>
   ${list.map((r,i) => `<tr><td class="c">${bn(i+1)}</td><td class="c">${fmtDate(r.date)}<br>${dayName(r.date)}</td>
     <td>${esc(abbr(S.hq))}<br>${tl(r.dep)}</td><td>${esc(abbr(r.kind === 'field' ? placesOf(r) : r.dest))}</td><td>${esc(abbr(S.hq))}<br>${tl(r.ret)}</td>
     <td class="r">${kmOf(r) ? bn(kmOf(r)) : ''}</td><td class="j">${esc(narrative(r))}</td></tr>`).join('')}
   <tr><td colspan="5" class="r"><b>মোট</b></td><td class="r"><b>${bn(total)}</b></td><td></td></tr></tbody></table>
-  <p class="cert">প্রত্যয়ন করা যাচ্ছে যে, উপরোক্ত ভ্রমণসমূহ সরকারি কাজে সম্পাদিত হয়েছে।</p>` + signBlock();
+  <p class="cert">প্রত্যয়ন করা যাচ্ছে যে, উপরোক্ত ভ্রমণসমূহ সরকারি কাজে সম্পাদিত হয়েছে।</p>` + memoLine() + signBlock();
 }
 function docHtml(){ return curDoc === 'advance' ? docAdvance() : curDoc === 'revised' ? docRevised() : docDiary(); }
 function renderDoc(){
+  $('memoBox').hidden = curDoc !== 'diary';
+  $('memoNo').value = M.memoNo || ''; $('memoDate').value = M.memoDate || '';
   const w = [];
   if(!M.rows.length) w.push('এই মাসের কোনো ভ্রমণ নেই। "মাসের ভ্রমণ" থেকে সূচি তৈরি করুন।');
   if(!S.name || !S.hq) w.push('সেটআপে নাম, পদবি ও রওয়ানার স্থান দিন।');
@@ -716,6 +725,8 @@ function renderDoc(){
   $('docWarn').innerHTML = w.map(x => `<div class="warn">${x}</div>`).join('');
   $('sheet').innerHTML = (curDoc === 'revised' && !M.locked) ? '' : docHtml();
 }
+$('memoNo').oninput = e => { M.memoNo = e.target.value; saveMonth(); $('sheet').innerHTML = docHtml(); };
+$('memoDate').oninput = e => { M.memoDate = e.target.value; saveMonth(); $('sheet').innerHTML = docHtml(); };
 $('docSeg').onclick = e => {
   const d = e.target.dataset.doc; if(!d) return; curDoc = d;
   document.querySelectorAll('#docSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.doc === d));

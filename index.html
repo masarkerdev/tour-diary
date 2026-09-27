@@ -75,6 +75,10 @@
         <button data-doc="revised" aria-pressed="false">সংশোধিত ভ্রমণসূচি</button>
         <button data-doc="diary" aria-pressed="false">ভ্রমণ বিবরণী</button>
       </div>
+      <div class="g2" id="memoBox" hidden>
+        <label class="f"><span>স্মারক নম্বরের শেষ অংশ (এই মাসের)</span><input id="memoNo" placeholder="যেমন: ২৫৪"></label>
+        <label class="f"><span>স্মারকের তারিখ</span><input type="date" id="memoDate"></label>
+      </div>
       <div id="docWarn"></div>
       <div class="acts">
         <button class="btn leaf" id="dlWord">Word ফাইল নামান</button>
@@ -106,6 +110,7 @@
         <label class="f"><span>অনুমোদনকারী কর্মকর্তার নাম</span><input data-s="supervisorName" placeholder="যেমন: মোঃ মাসুম কবির"></label>
         <label class="f"><span>অনুমোদনকারীর পদবি ও কর্মস্থল</span><input data-s="supervisor" placeholder="যেমন: উপজেলা কৃষি অফিসার, রাউজান, চট্টগ্রাম"></label>
         <label class="f"><span>সাধারণ যানবাহন</span><input data-s="vehicle" placeholder="অফিসিয়াল গাড়ি"></label>
+        <label class="f"><span>স্মারক নম্বরের অফিস অংশ (উপজেলার সবার জন্য এক)</span><input data-s="memoPrefix" placeholder="যেমন: ১২.০১.১৫৭৪.০০০.০০.০০০.২৬-"></label>
       </div>
       <div class="g4">
         <label class="f"><span>রওয়ানা</span><input type="time" data-s="dep"></label>
