@@ -92,7 +92,7 @@ function lsSet(k,v){ try{ localStorage.setItem('bhromon:'+k, JSON.stringify(v));
 let S = clone(DEFAULT_SETTINGS);
 let M = null, curYM = '', curDoc = 'advance';
 const pending = {};
-function setSaveState(t){ $('saveState').textContent = t; }
+function setSaveState(t){ const el = $('saveState'); el.textContent = t; el.classList.toggle('bad', /হয়নি|যায়নি/.test(t)); }
 function queue(key, fn){
   setSaveState('সংরক্ষণ হচ্ছে…');
   clearTimeout(pending[key]?.t);
@@ -108,12 +108,32 @@ const SHARED_KEYS = ['hq','memoPrefix','blocks','projects','purposeList','activi
 let U = null; // বর্তমান উপজেলা {id, district, name, role, data}
 const canEditShared = () => !U || U.role === 'admin';
 function sharedPart(){ const d = {}; SHARED_KEYS.forEach(k => d[k] = clone(S[k] ?? DEFAULT_SETTINGS[k])); return d; }
-function applyShared(d){ if(!d) return; SHARED_KEYS.forEach(k => { if(d[k] !== undefined) S[k] = clone(d[k]); }); }
+const isEmptyVal = v => v == null || v === '' || (Array.isArray(v) && !v.length);
+// উপজেলার তালিকার খালি অংশ নিজের তালিকা মুছে দেবে না
+function applyShared(d){ if(!d) return; SHARED_KEYS.forEach(k => { if(!isEmptyVal(d[k])) S[k] = clone(d[k]); }); }
+function sharedHasGaps(d){ return SHARED_KEYS.some(k => isEmptyVal((d || {})[k]) && !isEmptyVal(S[k])); }
 const saveSettings = () => {
   queue('profile', () => Store.saveProfile(clone(S)));
+  if(M && !isPastMonth() && M.rows.length) saveMonth(); // চলতি মাসের কপি হালনাগাদ
   if(U && U.role === 'admin'){ const id = U.id, d = sharedPart(); queue('upazila', () => Store.saveUpazila(id, d)); }
 };
-const saveMonth = () => { const ym = curYM, d = clone(M); queue('m-'+ym, () => Store.saveMonth(ym, d)); };
+const SNAP_KEYS = ['name','designation','office','hq','supervisorName','supervisor','memoPrefix','abbrText','diaryLayout','defaultPurpose','blocks'];
+const thisYM = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; };
+const isPastMonth = () => curYM < thisYM();
+function makeSnap(){ const o = {takenAt:new Date().toISOString()}; SNAP_KEYS.forEach(k => o[k] = clone(S[k] ?? DEFAULT_SETTINGS[k])); return o; }
+// চলতি ও আগামী মাসে কপি সবসময় হালনাগাদ; শেষ হয়ে যাওয়া মাসের কপি স্থির থাকে
+const saveMonth = () => {
+  if(!isPastMonth() || !M.snap) M.snap = makeSnap();
+  const ym = curYM, d = clone(M); queue('m-'+ym, () => Store.saveMonth(ym, d));
+};
+// শেষ হয়ে যাওয়া মাসের কাগজ সেই মাসের সেটআপ দিয়ে তৈরি হয়
+function withSnap(fn){
+  if(!M || !M.snap || !isPastMonth()) return fn();
+  const live = S;
+  const snapBlocks = M.snap.blocks || [];
+  S = Object.assign(clone(live), M.snap, {blocks: [...snapBlocks, ...live.blocks.filter(b => !snapBlocks.some(x => x.name === b.name))]});
+  try{ return fn(); } finally { S = live; }
+}
 window.addEventListener('beforeunload', e => { if(Object.keys(pending).length){ flush(); e.preventDefault(); e.returnValue=''; } });
 
 /* ---------------- লগইন ---------------- */
@@ -206,7 +226,9 @@ function renderBlocks(){
       <td><input data-k="saao" value="${esc(b.saao)}" aria-label="এসএএও"></td>
       <td><input data-k="km" inputmode="decimal" value="${esc(b.km)}" aria-label="দূরত্ব"></td>
       <td><button class="btn ghost small danger" data-del="${b.id}" aria-label="মুছুন">✕</button></td>
-    </tr>`).join('') : `<tr><td colspan="5" class="hint">এখনো কোনো ব্লক নেই। নিচের বাক্সে একসাথে তালিকা দিন।</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="5"><div class="warn">${canEditShared()
+      ? 'ব্লকের তালিকা এখনো দেওয়া হয়নি। নিচের বাক্সে একসাথে তালিকা দিন' + (U ? ', এটাই উপজেলার সবার তালিকা হবে।' : '।')
+      : 'উপজেলার অ্যাডমিন এখনো ব্লকের তালিকা দেননি। তিনি তালিকা দিলে এখানে নিজে থেকে চলে আসবে।'}</div></td></tr>`;
   applyLock();
 }
 $('blocksBody').addEventListener('input', e => {
@@ -246,10 +268,17 @@ function upErr(e){
   return 'সমস্যা হয়েছে: ' + m;
 }
 const cleanName = t => t.trim().replace(/\s*(উপজেলা|জেলা)$/,'').trim();
+// বানানের ছোটখাটো পার্থক্য উপেক্ষা করে তুলনা (ঊ/উ, ী/ি, ূ/ু, ৎ/ত, ঁ, স্পেস)
+const normName = t => cleanName(t).replace(/\s+/g,'').replace(/ঊ/g,'উ').replace(/ী/g,'ি').replace(/ূ/g,'ু').replace(/ৎ/g,'ত').replace(/ঁ/g,'').replace(/য়/g,'য়');
+function similarNames(name, list){ const n = normName(name); return list.filter(u => { const m = normName(u.name); return m === n || (n.length > 2 && (m.includes(n) || n.includes(m))); }); }
 async function refreshShared(){
   U = await Store.myUpazila();
-  if(U) applyShared(U.data);
-  renderSetup(); if(M) renderRows();
+  if(U){
+    const gaps = sharedHasGaps(U.data);
+    applyShared(U.data);
+    if(gaps && U.role === 'admin') saveSettings(); // অ্যাডমিনের তালিকা দিয়ে উপজেলার খালি অংশ পূরণ
+  }
+  renderSetup(); renderJoinBanner(); if(M) renderRows();
 }
 async function renderUpazila(){
   const box = $('upBox');
@@ -264,14 +293,14 @@ async function renderUpazila(){
       <div class="msg" id="upMsg"></div>`;
     $('upLeave').onclick = async () => {
       if(!confirm('উপজেলা ছাড়লে যৌথ তালিকা আর আপডেট হবে না, এখনকার কপিটা আপনার কাছে থাকবে। ছাড়বেন?')) return;
-      try{ await Store.rpc('leave_upazila'); U = null; renderSetup(); }catch(e){ $('upMsg').textContent = upErr(e); $('upMsg').className = 'msg err'; }
+      try{ await Store.rpc('leave_upazila'); U = null; renderSetup(); renderJoinBanner(); }catch(e){ $('upMsg').textContent = upErr(e); $('upMsg').className = 'msg err'; }
     };
     box.querySelector('details').addEventListener('toggle', e => { if(e.target.open) loadMembers(); });
     return;
   }
-  box.innerHTML = `<h2>আপনার উপজেলা বাছাই করুন</h2>
-    <p class="hint">উপজেলায় যোগ দিলে সেখানকার ব্লক, এসএএও, দূরত্ব, প্রকল্প ও উদ্দেশ্যের তালিকা একবারে পেয়ে যাবেন, নিজে লিখতে হবে না।</p>
-    <label class="f"><span>জেলা</span><select id="upDist"><option value="">জেলা বাছুন</option>${DISTRICTS.map(d => `<option ${d===upDistrict?'selected':''}>${d}</option>`).join('')}</select></label>
+  box.innerHTML = `<h2>আপনার উপজেলায় যোগ দিন</h2>
+    <p class="hint">যোগ দিলে উপজেলার ব্লক, এসএএও, দূরত্ব, প্রকল্প ও উদ্দেশ্যের তালিকা একবারে পেয়ে যাবেন।</p>
+    <label class="f"><span>ধাপ ১: জেলা বাছাই করুন</span><select id="upDist"><option value="">জেলা বাছুন</option>${DISTRICTS.map(d => `<option ${d===upDistrict?'selected':''}>${d}</option>`).join('')}</select></label>
     <div id="upChoices"></div><div class="msg" id="upMsg"></div>`;
   $('upDist').onchange = e => { upDistrict = e.target.value; renderChoices(); };
   if(upDistrict) renderChoices();
@@ -281,21 +310,25 @@ async function renderChoices(){
   el.innerHTML = '<p class="hint">লোড হচ্ছে…</p>';
   try{ upList = await Store.rpc('list_upazilas'); }catch(e){ el.innerHTML = '<p class="hint">তালিকা আনা যায়নি। ইন্টারনেট দেখুন।</p>'; return; }
   const list = upList.filter(u => u.district === upDistrict);
-  el.innerHTML = (list.length ? `<p class="hint" style="margin-top:8px">এই জেলায় যে উপজেলাগুলো আগে থেকে আছে, আপনারটায় চাপ দিন:</p>
+  el.innerHTML = (list.length ? `<p style="margin:10px 0 2px;font-weight:600">ধাপ ২: নিচে আপনার উপজেলার নামে চাপ দিন</p>
+      <p class="hint" style="margin:0 0 4px">শুধু জেলা বাছাই করলে যোগ দেওয়া হয় না।</p>
       <div class="uplist">${list.map(u => `<button class="btn" data-join="${u.id}"><span>${esc(u.name)}</span><small class="status">${bn(u.members)} জন</small></button>`).join('')}</div>`
       : `<p class="hint" style="margin-top:8px">এই জেলায় এখনো কোনো উপজেলা তৈরি হয়নি।</p>`) +
     `<details ${list.length ? '' : 'open'}><summary>তালিকায় আপনার উপজেলা নেই? নতুন তৈরি করুন</summary>
       <label class="f"><span>উপজেলার নাম</span><input id="upName" placeholder="যেমন: রাউজান"></label>
-      <p class="hint">তৈরি করলে আপনি অ্যাডমিন হবেন, আর আপনার এখনকার ব্লক ও তালিকা উপজেলার তালিকা হয়ে যাবে।</p>
+      <p class="hint">তৈরি করলে আপনি অ্যাডমিন হবেন। উপজেলার ব্লক, এসএএও ও দূরত্বের তালিকা আপনাকেই সেটআপে দিতে হবে, আগে থেকে দেওয়া থাকে না।</p>
       <button class="btn leaf small" id="upCreate">উপজেলা তৈরি করুন</button></details>`;
   el.querySelectorAll('[data-join]').forEach(b => b.onclick = async () => {
-    if(!confirm('যোগ দিলে উপজেলার তালিকা আপনার এখনকার ব্লক ও তালিকার জায়গায় বসবে। যোগ দেবেন?')) return;
+    if(!confirm('এই উপজেলায় যোগ দেবেন? উপজেলার ব্লক, এসএএও ও অন্যান্য তালিকা আপনার সেটআপে চলে আসবে।')) return;
     try{ await Store.rpc('join_upazila', {p_id: b.dataset.join}); await refreshShared(); }catch(e){ $('upMsg').textContent = upErr(e); $('upMsg').className = 'msg err'; }
   });
   $('upCreate').onclick = async () => {
     const name = cleanName($('upName').value);
     if(!name) return;
     if(list.some(u => u.name === name)) { $('upMsg').textContent = 'এই নামে উপজেলা আগেই আছে। উপরের তালিকা থেকে যোগ দিন।'; $('upMsg').className = 'msg err'; return; }
+    const sim = similarNames(name, list);
+    if(sim.length && !confirm(`এই জেলায় ইতিমধ্যে আছে: ${sim.map(u => u.name).join(', ')}। এটাই আপনার উপজেলা হলে "Cancel" চেপে উপরের তালিকা থেকে যোগ দিন। তবুও নতুন "${name}" তৈরি করবেন?`)) return;
+    if(!confirm(`"${name}, ${upDistrict}" নামে নতুন উপজেলা তৈরি হবে এবং আপনি অ্যাডমিন হবেন। নিশ্চিত?`)) return;
     try{ await Store.rpc('create_upazila', {p_district: upDistrict, p_name: name, p_data: sharedPart()}); await refreshShared(); }
     catch(e){ $('upMsg').textContent = upErr(e); $('upMsg').className = 'msg err'; }
   };
@@ -312,6 +345,13 @@ async function loadMembers(){
       catch(e){ $('upMsg').textContent = upErr(e); $('upMsg').className = 'msg err'; }
     });
   }catch(e){ el.innerHTML = '<p class="hint">সদস্য তালিকা আনা যায়নি।</p>'; }
+}
+
+function renderJoinBanner(){
+  const b = $('joinBanner'); if(!b) return;
+  b.hidden = !(CLOUD && !U);
+  b.innerHTML = `আপনি এখনো কোনো উপজেলায় যোগ দেননি। <button class="btn small leaf" id="goJoin">উপজেলায় যোগ দিন</button>`;
+  const g = $('goJoin'); if(g) g.onclick = () => { openTab('setup'); $('upBox').scrollIntoView({behavior:'smooth'}); };
 }
 
 /* নির্দিষ্ট মাসিক ভ্রমণ */
@@ -371,6 +411,7 @@ async function loadMonth(ym){
   curYM = ym; $('month').value = ym;
   try{ M = (await Store.getMonth(ym)) || emptyMonth(); }
   catch(e){ M = emptyMonth(); setSaveState('এই মাসের তথ্য আনা যায়নি, ইন্টারনেট দেখুন'); }
+  if(!M.snap && M.rows.length) saveMonth(); // পুরোনো মাসের জন্য প্রথমবার কপি রাখা
   renderPlan();
 }
 $('month').onchange = e => { if(e.target.value) loadMonth(e.target.value); };
@@ -401,7 +442,7 @@ function workingDays(ym, holidayStr){
 function generate(){
   const [y, mo] = curYM.split('-').map(Number);
   const blocks = S.blocks.filter(b => b.name.trim());
-  if(!blocks.length){ $('genHint').textContent = 'আগে সেটআপে ব্লকের তালিকা দিন।'; return; }
+  if(!blocks.length){ $('genHint').textContent = canEditShared() ? 'আগে সেটআপে ব্লকের তালিকা দিন।' : 'উপজেলার অ্যাডমিন এখনো ব্লকের তালিকা দেননি। তাঁকে জানান।'; return; }
   const rows = [];
   const fixed = new Set();
   S.recurring.forEach(r => { const d = recDate(r, y, mo); if(d && r.dest){ rows.push(newOther(d, r)); fixed.add(d); } });
@@ -592,13 +633,20 @@ function cardHtml(r, i){
 }
 function renderRows(){
   M.rows.sort((a,b) => a.date.localeCompare(b.date));
-  $('rows').innerHTML = M.rows.map(cardHtml).join('');
-  renderLock();
+  $('rows').innerHTML = withSnap(() => M.rows.map(cardHtml).join(''));
+  renderLock(); renderDupWarn();
 }
+// একই তারিখে একাধিক ভ্রমণ (বাতিল বাদে)
+function dupDates(){
+  const c = {}; M.rows.filter(r => !r.cancelled).forEach(r => c[r.date] = (c[r.date] || 0) + 1);
+  return Object.entries(c).filter(([,n]) => n > 1).sort();
+}
+function dupText(){ const d = dupDates(); return d.length ? d.map(([dt,n]) => `${fmtDate(dt)} তারিখে ${bn(n)}টি ভ্রমণ`).join(', ') + ' আছে। একটি বাতিল বা অন্য তারিখে সরানোর দরকার হলে দেখে নিন।' : ''; }
+function renderDupWarn(){ const t = dupText(); $('dupWarn').innerHTML = t ? `<div class="warn">${t}</div>` : ''; }
 function rowOf(el){ const c = el.closest('.trip'); return c ? [c, M.rows.find(r => r.id === c.dataset.id)] : [null, null]; }
 function setPath(obj, path, val){ const p = path.split('.'); let o = obj; while(p.length > 1) o = o[p.shift()]; o[p[0]] = val; }
 function refreshCard(card, r){
-  card.querySelector('[data-prev]').textContent = narrative(r);
+  card.querySelector('[data-prev]').textContent = withSnap(() => narrative(r));
   card.querySelector('[data-sum]').textContent = summaryText(r);
   const st = statusOf(r);
   card.querySelector('[data-badge]').innerHTML = BADGE[st] || '';
@@ -710,7 +758,7 @@ function docDiary(){
   <tr><td colspan="5" class="r"><b>মোট</b></td><td class="r"><b>${bn(total)}</b></td><td></td></tr></tbody></table>
   <p class="cert">প্রত্যয়ন করা যাচ্ছে যে, উপরোক্ত ভ্রমণসমূহ সরকারি কাজে সম্পাদিত হয়েছে।</p>` + memoLine() + signBlock();
 }
-function docHtml(){ return curDoc === 'advance' ? docAdvance() : curDoc === 'revised' ? docRevised() : docDiary(); }
+function docHtml(){ return withSnap(() => curDoc === 'advance' ? docAdvance() : curDoc === 'revised' ? docRevised() : docDiary()); }
 function renderDoc(){
   $('memoBox').hidden = curDoc !== 'diary';
   $('memoNo').value = M.memoNo || ''; $('memoDate').value = M.memoDate || '';
@@ -719,11 +767,18 @@ function renderDoc(){
   if(!S.name || !S.hq) w.push('সেটআপে নাম, পদবি ও রওয়ানার স্থান দিন।');
   if(curDoc === 'revised' && !M.locked) w.push('সংশোধিত সূচির জন্য আগে অগ্রিম সূচি চূড়ান্ত করতে হবে।');
   if(curDoc === 'advance' && !M.locked && M.rows.length) w.push('অগ্রিম সূচি এখনো চূড়ান্ত নয়। জমা দেওয়ার পর "মাসের ভ্রমণ" থেকে চূড়ান্ত করুন।');
+  const dt = dupText(); if(dt) w.push(dt);
   if(curDoc === 'diary'){
-    const noKm = M.rows.filter(r => !r.cancelled && !kmOf(r)).length;
+    const noKm = withSnap(() => M.rows.filter(r => !r.cancelled && !kmOf(r)).length);
     if(noKm) w.push(`${bn(noKm)}টি ভ্রমণের দূরত্ব নেই। সেটআপে ব্লকের দূরত্ব দিন বা ভ্রমণে কিমি লিখুন।`);
   }
-  $('docWarn').innerHTML = w.map(x => `<div class="warn">${x}</div>`).join('');
+  $('docWarn').innerHTML = w.map(x => `<div class="warn">${x}</div>`).join('') +
+    (isPastMonth() && M.snap ? `<div class="locknote">এই মাসের কাগজ মাসটির নিজস্ব সেটআপ (নাম, পদবি, দপ্তর, ব্লকের দূরত্ব, স্মারক) দিয়ে তৈরি হচ্ছে, তাই পরে সেটআপ বদলালেও এটা বদলাবে না।
+      <div class="acts" style="margin-top:6px"><button class="btn small" id="resnap">বর্তমান সেটআপ এই মাসে বসান</button></div></div>` : '');
+  const rs = $('resnap'); if(rs) rs.onclick = () => {
+    if(!confirm('এই মাসের কাগজে বর্তমান নাম, পদবি, দপ্তর, ব্লকের দূরত্ব ও স্মারকের অংশ বসবে। শুধু ভুল ঠিক করার জন্য করুন, বদলির পর করবেন না। চালিয়ে যাবেন?')) return;
+    M.snap = makeSnap(); const ym = curYM, d = clone(M); queue('m-'+ym, () => Store.saveMonth(ym, d)); renderDoc();
+  };
   $('sheet').innerHTML = (curDoc === 'revised' && !M.locked) ? '' : docHtml();
 }
 $('memoNo').oninput = e => { M.memoNo = e.target.value; saveMonth(); $('sheet').innerHTML = docHtml(); };
@@ -793,11 +848,12 @@ async function startApp(user){
     S = Object.assign(clone(DEFAULT_SETTINGS), p || {});
     if(!p && user && user.user_metadata && user.user_metadata.name){ S.name = user.user_metadata.name; saveSettings(); }
   }catch(e){ setSaveState('সেটআপ আনা যায়নি, ইন্টারনেট দেখুন'); }
-  if(CLOUD){ try{ U = await Store.myUpazila(); if(U) applyShared(U.data); }catch(e){ console.error(e); } }
+  if(CLOUD){ try{ U = await Store.myUpazila(); if(U){ const gaps = sharedHasGaps(U.data); applyShared(U.data); if(gaps && U.role === 'admin') saveSettings(); } }catch(e){ console.error(e); } }
   $('whoName').textContent = S.name || (user && user.email) || '';
   renderSetup();
   const now = new Date();
   await loadMonth(`${now.getFullYear()}-${pad(now.getMonth()+1)}`);
+  renderJoinBanner();
   if(!S.blocks.length || (CLOUD && !U)) openTab('setup');
 }
 async function boot(){

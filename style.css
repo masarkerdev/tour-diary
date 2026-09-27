@@ -110,3 +110,5 @@ table.grid td{padding:3px 4px}
 .sheet .sign{display:flex;justify-content:space-between;margin-top:46px;gap:30px}
 .sheet .sign div{text-align:center;min-width:220px;border-top:1px dotted #000;padding-top:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.status.bad{color:var(--danger);font-weight:600}
+#joinBanner{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
